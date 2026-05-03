@@ -4,11 +4,15 @@ Project 13 · Cloud Computing · Spring 2025–2026
 **Furkan Can Karafil · Halil Utku Demirtaş**
 
 [![CI](https://github.com/Urthella/costsight/actions/workflows/ci.yml/badge.svg)](https://github.com/Urthella/costsight/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
 End-to-end pipeline that ingests AWS CUR-style billing data, runs three
 anomaly detectors in parallel (STL Decomposition, Isolation Forest, Z-Score),
 generates severity-scored alerts, and visualizes everything in a Streamlit
 dashboard.
+
+> 📄 **Full technical write-up:** [`REPORT.md`](REPORT.md) · 🎬 **Demo walkthrough:** [`DEMO.md`](DEMO.md) · 🎤 **Slide deck:** [`slides/deck.md`](slides/deck.md)
 
 ## Quick start
 
@@ -30,6 +34,19 @@ Outputs land in `outputs/`:
 - `detections_{detector}.csv` — per-day detector flags + scores
 - `alerts_{detector}.{csv,json}` — severity-banded alert log
 - `comparison.csv` — Precision / Recall / F1 by anomaly type, per detector
+- `alert_quality.csv` — alert quality (true-positive rate) by severity band
+
+To get statistically defensible numbers (mean ± std across 25 random seeds):
+
+```bash
+python scripts/run_benchmark.py --seeds 25
+```
+
+To re-render the presentation figures from a fresh run:
+
+```bash
+python scripts/make_figures.py    # writes slides/figures/*.png
+```
 
 ## Repository layout
 
@@ -40,13 +57,23 @@ src/cloud_anomaly/
   preprocessing.py     load, aggregate, pivot, gap-fill
   detectors/           zscore, stl, iforest — common detect(df) interface
   alerts.py            severity = deviation × duration × $impact
-  evaluation.py        Precision / Recall, per-anomaly-type breakdown
+  evaluation.py        Precision / Recall, per-anomaly-type, alert quality
+  benchmark.py         multi-seed Monte Carlo runner
   pipeline.py          run() — wires everything together
-dashboard/app.py       Streamlit UI
-scripts/run_pipeline.py  CLI entry point
-tests/                 smoke tests
-data/raw/              generated CUR + labels (gitignored)
-outputs/               detector + alert + comparison artifacts (gitignored)
+dashboard/app.py       Streamlit UI (4 tabs)
+scripts/
+  run_pipeline.py        single-run CLI
+  run_benchmark.py       25-seed CLI
+  make_figures.py        renders presentation PNGs
+slides/
+  deck.md                Marp slide deck (renders to PDF/HTML)
+  SLIDE_UPDATES.md       per-slide guide for the existing deck
+  figures/               4 ready-to-use 16:9 PNGs
+examples/                committed sample artifacts
+tests/                   smoke tests, run on every CI commit
+.github/workflows/ci.yml CI: pytest + pipeline on Python 3.11 and 3.12
+data/raw/                generated CUR + labels (gitignored)
+outputs/                 run artifacts (gitignored)
 ```
 
 ## Anomaly types injected
@@ -77,16 +104,16 @@ detector-agnostic.
 
 ## Empirical results
 
-Output of `python scripts/run_pipeline.py` on the default 90-day synthetic
-dataset (seed = 42). Full table in [`examples/comparison.csv`](examples/comparison.csv).
+Mean ± std across **25 random seeds** (`python scripts/run_benchmark.py
+--seeds 25`). Full table in [`examples/benchmark_summary.csv`](examples/benchmark_summary.csv).
 
 ### F1 by anomaly type
 
 | Detector | Point spike | Level shift | Gradual drift | Overall |
 |---|---:|---:|---:|---:|
-| **Z-Score**         | **1.000** | 0.000 | 0.000 | 0.107 |
-| **STL**             | 0.500 | **0.684** | **0.767** | **0.796** |
-| **Isolation Forest**| 0.240 | 0.273 | 0.214 | 0.345 |
+| **Z-Score**         | **0.962 ± 0.078** | 0.012 ± 0.033 | 0.000 ± 0.000 | 0.105 ± 0.018 |
+| **STL**             | 0.522 ± 0.082 | **0.616 ± 0.204** | **0.734 ± 0.052** | **0.757 ± 0.064** |
+| **Isolation Forest**| 0.247 ± 0.035 | 0.216 ± 0.060 | 0.217 ± 0.034 | 0.319 ± 0.036 |
 
 ### Headline takeaways
 
@@ -110,5 +137,17 @@ pytest -q
 ## Scope
 
 Phase 1 (May 20 deadline): synthetic data, three detectors, alert module,
-dashboard, P/R evaluation. Out of scope: real-time streaming, multi-cloud,
-production deployment, auto-remediation, cost forecasting.
+dashboard, P/R evaluation. Phase 2 (post-finals): comparison report,
+multi-seed benchmark, demo presentation. Out of scope: real-time
+streaming, multi-cloud, production deployment, auto-remediation, cost
+forecasting.
+
+## License
+
+[MIT](LICENSE) — see also [CONTRIBUTING.md](CONTRIBUTING.md) for how to
+extend the project with new detectors or anomaly types.
+
+## Authors
+
+- **Furkan Can Karafil** ([@Urthella](https://github.com/Urthella)) · 222010020013
+- **Halil Utku Demirtaş** · 222010020054

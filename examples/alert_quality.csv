@@ -1,0 +1,7 @@
+detector,severity,n_alerts,true_positive,precision
+zscore,MEDIUM,2,2,1.0
+zscore,LOW,1,1,1.0
+stl,MEDIUM,2,2,1.0
+stl,LOW,43,37,0.8605
+iforest,MEDIUM,2,2,1.0
+iforest,LOW,32,13,0.4062

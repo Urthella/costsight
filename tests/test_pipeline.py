@@ -10,8 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from cloud_anomaly.alerts import build_alerts
+from cloud_anomaly.benchmark import run as run_benchmark
 from cloud_anomaly.detectors import DETECTORS
-from cloud_anomaly.evaluation import compare_detectors, evaluate
+from cloud_anomaly.evaluation import compare_detectors, evaluate, evaluate_alerts
 from cloud_anomaly.preprocessing import aggregate_by_service
 from cloud_anomaly.synthetic_data import generate
 
@@ -49,3 +50,17 @@ def test_alerts_and_eval():
 
     comparison = compare_detectors(detectors, labels)
     assert {"detector", "anomaly_type", "precision", "recall", "f1"} <= set(comparison.columns)
+
+    # Alert quality breakdown should report severity bands when alerts exist.
+    alerts_stl = build_alerts(detectors["stl"], detector_name="stl", dataset_days=60)
+    if not alerts_stl.empty:
+        quality = evaluate_alerts(alerts_stl, labels)
+        assert {"severity", "n_alerts", "true_positive", "precision"} <= set(quality.columns)
+        assert quality["precision"].between(0.0, 1.0).all()
+
+
+def test_benchmark_runs():
+    result = run_benchmark(n_seeds=3, n_days=60, base_seed=2000)
+    assert {"detector", "anomaly_type", "f1_mean", "f1_std", "n_runs"} <= set(result.summary.columns)
+    assert (result.summary["n_runs"] == 3).all()
+    assert result.raw["seed"].nunique() == 3

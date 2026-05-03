@@ -8,7 +8,7 @@ import pandas as pd
 from .alerts import build_alerts, write_alerts
 from .config import OUTPUTS_DIR, RAW_DIR
 from .detectors import DETECTORS
-from .evaluation import compare_detectors
+from .evaluation import compare_detectors, evaluate_alerts
 from .preprocessing import aggregate_by_service, load_cur
 from .synthetic_data import generate
 
@@ -45,6 +45,21 @@ def run(
     comparison = compare_detectors(detector_outputs, labels_df)
     comparison.to_csv(out_dir / "comparison.csv", index=False)
 
+    alert_quality_rows = []
+    for name, alerts_df in alerts_by_detector.items():
+        sub = evaluate_alerts(alerts_df, labels_df)
+        if sub.empty:
+            continue
+        sub.insert(0, "detector", name)
+        alert_quality_rows.append(sub)
+    alert_quality = (
+        pd.concat(alert_quality_rows, ignore_index=True)
+        if alert_quality_rows
+        else pd.DataFrame()
+    )
+    if not alert_quality.empty:
+        alert_quality.to_csv(out_dir / "alert_quality.csv", index=False)
+
     return {
         "cur": cur_df,
         "labels": labels_df,
@@ -52,6 +67,7 @@ def run(
         "detections": detector_outputs,
         "alerts": alerts_by_detector,
         "comparison": comparison,
+        "alert_quality": alert_quality,
     }
 
 
@@ -59,4 +75,7 @@ if __name__ == "__main__":
     artifacts = run()
     print("\n=== Detector comparison (P/R by anomaly type) ===")
     print(artifacts["comparison"].to_string(index=False))
+    if not artifacts["alert_quality"].empty:
+        print("\n=== Alert quality by severity band ===")
+        print(artifacts["alert_quality"].to_string(index=False))
     print("\nAlerts written under outputs/")

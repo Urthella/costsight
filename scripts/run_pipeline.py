@@ -13,4 +13,7 @@ if __name__ == "__main__":
     artifacts = run()
     print("\n=== Detector comparison (P/R by anomaly type) ===")
     print(artifacts["comparison"].to_string(index=False))
+    if not artifacts["alert_quality"].empty:
+        print("\n=== Alert quality by severity band ===")
+        print(artifacts["alert_quality"].to_string(index=False))
     print(f"\nArtifacts written to {ROOT / 'outputs'}")

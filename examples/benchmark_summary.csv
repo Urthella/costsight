@@ -1,0 +1,13 @@
+detector,anomaly_type,precision_mean,precision_std,recall_mean,recall_std,f1_mean,f1_std,n_runs
+iforest,OVERALL,0.4238,0.0478,0.2574,0.034,0.3192,0.0364,25
+iforest,gradual_drift,0.2465,0.0366,0.1961,0.0347,0.2173,0.0337,25
+iforest,level_shift,0.1975,0.0556,0.24,0.0698,0.2156,0.0597,25
+iforest,point_spike,0.1414,0.0233,1.0,0.0,0.247,0.0347,25
+stl,OVERALL,0.8615,0.0425,0.6785,0.0848,0.7568,0.0643,25
+stl,gradual_drift,0.7895,0.057,0.689,0.0651,0.7343,0.0517,25
+stl,level_shift,0.6396,0.1795,0.6105,0.2359,0.6163,0.204,25
+stl,point_spike,0.3575,0.0782,1.0,0.0,0.5222,0.0824,25
+zscore,OVERALL,0.99,0.05,0.0558,0.0102,0.1055,0.0183,25
+zscore,gradual_drift,0.0,0.0,0.0,0.0,0.0,0.0,25
+zscore,level_shift,0.12,0.3317,0.0063,0.0174,0.012,0.0332,25
+zscore,point_spike,0.99,0.05,0.9467,0.1247,0.9623,0.0777,25

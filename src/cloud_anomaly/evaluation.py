@@ -95,3 +95,39 @@ def compare_detectors(
         sub.insert(0, "detector", name)
         frames.append(sub)
     return pd.concat(frames, ignore_index=True)
+
+
+def evaluate_alerts(
+    alerts: pd.DataFrame, labels: pd.DataFrame
+) -> pd.DataFrame:
+    """Quality of the *alerted* (date, service) pairs, broken down by severity.
+
+    Helpful for the FinOps-facing claim that HIGH-severity alerts should be
+    overwhelmingly true positives. Returns one row per severity band with
+    columns ``severity``, ``n_alerts``, ``true_positive``, ``precision``.
+    """
+    if alerts.empty:
+        return pd.DataFrame(columns=["severity", "n_alerts", "true_positive", "precision"])
+
+    truth = labels[["date", "service", "is_anomaly"]].rename(
+        columns={"is_anomaly": "_truth"}
+    )
+    merged = alerts.merge(truth, on=["date", "service"], how="left")
+    merged["_truth"] = merged["_truth"].fillna(False).astype(bool)
+
+    rows = []
+    for severity in ["HIGH", "MEDIUM", "LOW"]:
+        sub = merged[merged["severity"] == severity]
+        n = len(sub)
+        if n == 0:
+            continue
+        tp = int(sub["_truth"].sum())
+        rows.append(
+            {
+                "severity": severity,
+                "n_alerts": n,
+                "true_positive": tp,
+                "precision": round(tp / n, 4) if n else 0.0,
+            }
+        )
+    return pd.DataFrame(rows)

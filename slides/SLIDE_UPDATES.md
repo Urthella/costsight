@@ -1,5 +1,15 @@
 # Slide Update Guide — Phase 2 Presentation
 
+> **TL;DR.** Two ready-to-go options:
+>
+> - **`slides/deck.md`** — a fresh, self-contained Marp slide deck with
+>   every empirical number already wired in. Render with the VSCode
+>   Marp extension (right-click → *Export*) or at <https://marp.app>.
+>   Use this if you want the simplest path to a finished deck.
+> - **The original `Cloud_Cost_Anomaly_Presentation_EN.pdf` deck.** Use
+>   the per-slide instructions below to swap qualitative ratings for
+>   the empirical figures committed under `slides/figures/`.
+
 This file tells you exactly which slides in the existing deck
 (`Cloud_Cost_Anomaly_Presentation_EN.pdf`) to change and what to drop in.
 All figures referenced here are committed under `slides/figures/` and were
