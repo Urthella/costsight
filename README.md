@@ -8,9 +8,9 @@ Project 13 · Cloud Computing · Spring 2025–2026
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
 End-to-end pipeline that ingests AWS CUR-style billing data, runs three
-anomaly detectors in parallel (STL Decomposition, Isolation Forest, Z-Score),
-generates severity-scored alerts, and visualizes everything in a Streamlit
-dashboard.
+anomaly detectors in parallel (STL Decomposition, Isolation Forest, Z-Score)
+at either **service** or **(service, env)** granularity, generates
+severity-scored alerts, and visualizes everything in a Streamlit dashboard.
 
 > 📄 **Full technical write-up:** [`REPORT.md`](REPORT.md) · 🎬 **Demo walkthrough:** [`DEMO.md`](DEMO.md) · 🎤 **Slide deck:** [`slides/deck.md`](slides/deck.md)
 
@@ -22,10 +22,13 @@ python -m venv .venv
 . .venv/Scripts/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. Generate synthetic data + run the full pipeline
+# 2. Generate synthetic data + run the full pipeline (service-level by default)
 python scripts/run_pipeline.py
 
-# 3. Launch the dashboard
+# 3. Re-run at (service, env) multi-granularity
+python scripts/run_pipeline.py --granularity service_env
+
+# 4. Launch the dashboard (Granularity radio in the sidebar)
 streamlit run dashboard/app.py
 ```
 
@@ -39,7 +42,8 @@ Outputs land in `outputs/`:
 To get statistically defensible numbers (mean ± std across 25 random seeds):
 
 ```bash
-python scripts/run_benchmark.py --seeds 25
+python scripts/run_benchmark.py --seeds 25 --granularity service
+python scripts/run_benchmark.py --seeds 25 --granularity service_env
 ```
 
 To re-render the presentation figures from a fresh run:
@@ -78,14 +82,16 @@ outputs/                 run artifacts (gitignored)
 
 ## Anomaly types injected
 
-| Type           | Description                            | Example cause          |
-|----------------|----------------------------------------|------------------------|
-| Point spike    | Single-day cost explosion              | Infinite loop          |
-| Level shift   | Persistent step up after change        | Mis-sized instances    |
-| Gradual drift | Slow upward creep over a window        | Data accumulation      |
+| Type           | Default target          | Description                            | Example cause          |
+|----------------|-------------------------|----------------------------------------|------------------------|
+| Point spike    | EC2 prod, Lambda dev    | Single-day cost explosion              | Infinite loop          |
+| Level shift   | RDS staging              | Persistent step up after change        | Mis-sized instances    |
+| Gradual drift | S3 prod                  | Slow upward creep over a window        | Data accumulation      |
 
-Each injected anomaly is recorded in `data/raw/ground_truth_labels.csv` so
-detector outputs can be evaluated with real Precision / Recall numbers.
+Each injected anomaly is recorded twice: in `data/raw/ground_truth_labels.csv`
+at the (date, service) granularity (legacy schema, env-collapsed) and in
+`data/raw/ground_truth_labels_granular.csv` at the (date, service, env)
+granularity, so detectors can be scored fairly at either resolution.
 
 ## Detector outputs (common schema)
 
@@ -95,38 +101,61 @@ Every detector returns a frame with:
 |---------------|----------|-----------------------------------|
 | `date`        | datetime | day                               |
 | `service`     | str      | AWS service name                  |
+| `env`         | str      | environment (only when `group_keys` includes it) |
 | `cost`        | float    | observed cost on that day         |
 | `score`       | float    | anomaly score (higher = stranger) |
 | `is_anomaly`  | bool     | flagged by the detector           |
 
-This is what makes the alert module and evaluation framework
-detector-agnostic.
+All detectors share `detect(long_df, group_keys=("service",), ...)` so the
+alert module, evaluation, and dashboard are detector-agnostic *and*
+granularity-agnostic.
 
 ## Empirical results
 
-Mean ± std across **25 random seeds** (`python scripts/run_benchmark.py
---seeds 25`). Full table in [`examples/benchmark_summary.csv`](examples/benchmark_summary.csv).
+Mean F1 ± std across **25 random seeds** (`python scripts/run_benchmark.py
+--seeds 25 --granularity {service|service_env}`). Full tables in
+[`examples/benchmark_summary_service.csv`](examples/benchmark_summary_service.csv)
+and [`examples/benchmark_summary_service_env.csv`](examples/benchmark_summary_service_env.csv).
 
-### F1 by anomaly type
+The synthetic CUR is split across prod / staging / dev environments and
+each anomaly is injected into a *specific* env. Running at one
+granularity vs. the other surfaces a clean tradeoff:
+
+### F1 at the **service** granularity (legacy)
 
 | Detector | Point spike | Level shift | Gradual drift | Overall |
 |---|---:|---:|---:|---:|
-| **Z-Score**         | **0.962 ± 0.078** | 0.012 ± 0.033 | 0.000 ± 0.000 | 0.105 ± 0.018 |
-| **STL**             | 0.522 ± 0.082 | **0.616 ± 0.204** | **0.734 ± 0.052** | **0.757 ± 0.064** |
-| **Isolation Forest**| 0.247 ± 0.035 | 0.216 ± 0.060 | 0.217 ± 0.034 | 0.319 ± 0.036 |
+| **Z-Score**         | **0.596 ± 0.143** | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.048 ± 0.017 |
+| **STL**             | 0.300 ± 0.111 | 0.057 ± 0.052 | **0.615 ± 0.077** | **0.505 ± 0.058** |
+| **Isolation Forest**| 0.160 ± 0.054 | **0.104 ± 0.045** | 0.159 ± 0.035 | 0.225 ± 0.032 |
+
+### F1 at **(service, env)** multi-granularity
+
+| Detector | Point spike | Level shift | Gradual drift | Overall |
+|---|---:|---:|---:|---:|
+| **Z-Score**         | **0.883 ± 0.156** | 0.008 ± 0.028 | 0.000 ± 0.000 | 0.092 ± 0.023 |
+| **STL**             | 0.131 ± 0.026 | **0.152 ± 0.143** | **0.476 ± 0.051** | **0.484 ± 0.074** |
+| **Isolation Forest**| 0.116 ± 0.010 | 0.058 ± 0.022 | 0.058 ± 0.019 | 0.136 ± 0.025 |
 
 ### Headline takeaways
 
-- **No single method wins all anomaly types** — the central thesis of the
-  project is empirically supported.
-- **STL** is the strongest overall detector and handles trend-based
-  anomalies (drift, level shift) cleanly.
-- **Z-Score** is a perfect point-spike detector but completely blind to
-  drift and level shifts, exactly as expected from a stationary baseline.
-- **Isolation Forest** catches every point spike (recall = 1.0 there) but
-  struggles to flag persistent shifts because they look "in distribution"
-  once they stabilise — a known limitation of unsupervised tree models on
-  univariate cost data.
+- **No single method *or* granularity wins everything.** Z-Score's
+  point-spike F1 jumps **+48%** (0.596 → 0.883) when env is broken
+  out — a Lambda dev runaway loop is too small in absolute dollars to
+  trip a service-level 3σ threshold but is obvious in dev's own
+  series. Conversely STL's drift F1 *drops* −23% (0.615 → 0.476) at
+  finer granularity because the drift lives in S3 prod (65% of S3
+  spend), where pooling actually helps the trend detector.
+- **STL** remains the strongest *overall* detector at both
+  granularities — but its lead narrows when you cherry-pick the right
+  granularity per anomaly type.
+- **Z-Score** is a near-perfect point-spike detector (precision 0.99+)
+  but completely blind to drift and level shifts, exactly as expected
+  from a stationary baseline.
+- **Isolation Forest** is mid-pack at service granularity and gets
+  *worse* in multi-gran mode despite group-count-scaled contamination
+  — a known regression that adaptive per-group thresholding (Phase 2+
+  future work) should address.
 
 ## Running tests
 
@@ -137,8 +166,9 @@ pytest -q
 ## Scope
 
 Phase 1 (May 20 deadline): synthetic data, three detectors, alert module,
-dashboard, P/R evaluation. Phase 2 (post-finals): comparison report,
-multi-seed benchmark, demo presentation. Out of scope: real-time
+dashboard, P/R evaluation. Phase 2 (this revision): multi-seed benchmark,
+**(service, env) multi-granularity** pipeline + dashboard, env-aware
+ground truth, granularity-tradeoff analysis. Out of scope: real-time
 streaming, multi-cloud, production deployment, auto-remediation, cost
 forecasting.
 

@@ -121,44 +121,92 @@ labels.
 - Default detector hyperparameters.
 - Metrics: per-anomaly-type Precision, Recall, F1 + an OVERALL row.
 
-### 3.2 Headline results (mean ± std across 25 seeds)
+### 3.2 Dataset granularity
+
+The CUR generator splits each service across three environments
+(prod / staging / dev) with shares 0.65 / 0.25 / 0.10 — anomalies are
+injected at a *specific* (service, env) cell on purpose: EC2 prod
+spike, Lambda dev spike, RDS staging level shift, S3 prod gradual
+drift. Detectors are then run at one of two granularities:
+
+- **service** — daily cost summed across env, one independent series
+  per service (7 series). This is the legacy Phase 1 setup.
+- **(service, env)** — one independent series per (service, env)
+  cell (21 series). This is the multi-granularity setting added in
+  Phase 2; ground truth is matched at the same granularity.
+
+### 3.3 Headline results — service granularity (mean ± std, 25 seeds)
 
 | Detector | Anomaly type | Precision | Recall | F1 |
 |---|---|---:|---:|---:|
-| Z-Score | Point Spike | 0.990 ± 0.050 | 0.947 ± 0.125 | **0.962 ± 0.078** |
-| Z-Score | Level Shift | 0.120 ± 0.332 | 0.006 ± 0.017 | **0.012 ± 0.033** |
+| Z-Score | Point Spike | 1.000 ± 0.000 | 0.440 ± 0.159 | **0.596 ± 0.143** |
+| Z-Score | Level Shift | 0.000 ± 0.000 | 0.000 ± 0.000 | **0.000 ± 0.000** |
 | Z-Score | Gradual Drift | 0.000 ± 0.000 | 0.000 ± 0.000 | **0.000 ± 0.000** |
-| Z-Score | OVERALL | 0.990 ± 0.050 | 0.056 ± 0.010 | **0.105 ± 0.018** |
-| STL | Point Spike | 0.357 ± 0.078 | 1.000 ± 0.000 | **0.522 ± 0.082** |
-| STL | Level Shift | 0.640 ± 0.179 | 0.611 ± 0.236 | **0.616 ± 0.204** |
-| STL | Gradual Drift | 0.789 ± 0.057 | 0.689 ± 0.065 | **0.734 ± 0.052** |
-| STL | OVERALL | 0.862 ± 0.043 | 0.678 ± 0.085 | **0.757 ± 0.064** |
-| Isolation Forest | Point Spike | 0.141 ± 0.023 | 1.000 ± 0.000 | **0.247 ± 0.035** |
-| Isolation Forest | Level Shift | 0.198 ± 0.056 | 0.240 ± 0.070 | **0.216 ± 0.060** |
-| Isolation Forest | Gradual Drift | 0.246 ± 0.037 | 0.196 ± 0.035 | **0.217 ± 0.034** |
-| Isolation Forest | OVERALL | 0.424 ± 0.048 | 0.257 ± 0.034 | **0.319 ± 0.036** |
+| Z-Score | OVERALL | 1.000 ± 0.000 | 0.025 ± 0.009 | **0.048 ± 0.017** |
+| STL | Point Spike | 0.192 ± 0.079 | 0.733 ± 0.236 | **0.300 ± 0.111** |
+| STL | Level Shift | 0.085 ± 0.089 | 0.044 ± 0.039 | **0.057 ± 0.052** |
+| STL | Gradual Drift | 0.649 ± 0.080 | 0.588 ± 0.090 | **0.615 ± 0.077** |
+| STL | OVERALL | 0.683 ± 0.075 | 0.402 ± 0.054 | **0.505 ± 0.058** |
+| Isolation Forest | Point Spike | 0.089 ± 0.031 | 0.853 ± 0.194 | **0.160 ± 0.054** |
+| Isolation Forest | Level Shift | 0.086 ± 0.037 | 0.135 ± 0.063 | **0.104 ± 0.045** |
+| Isolation Forest | Gradual Drift | 0.155 ± 0.031 | 0.165 ± 0.043 | **0.159 ± 0.035** |
+| Isolation Forest | OVERALL | 0.273 ± 0.043 | 0.193 ± 0.031 | **0.225 ± 0.032** |
 
-Reproduce with `python scripts/run_benchmark.py --seeds 25`.
+Reproduce with `python scripts/run_benchmark.py --seeds 25 --granularity service`.
 
-### 3.3 Interpretation
+### 3.4 Headline results — (service, env) multi-granularity
 
-**No single method wins all anomaly types** — the central thesis of the
-project is empirically supported. The takeaways:
+| Detector | Anomaly type | Precision | Recall | F1 |
+|---|---|---:|---:|---:|
+| Z-Score | Point Spike | 0.987 ± 0.067 | 0.827 ± 0.218 | **0.883 ± 0.156** |
+| Z-Score | Level Shift | 0.080 ± 0.277 | 0.004 ± 0.015 | **0.008 ± 0.028** |
+| Z-Score | Gradual Drift | 0.000 ± 0.000 | 0.000 ± 0.000 | **0.000 ± 0.000** |
+| Z-Score | OVERALL | 0.987 ± 0.067 | 0.048 ± 0.012 | **0.092 ± 0.023** |
+| STL | Point Spike | 0.070 ± 0.014 | 0.920 ± 0.174 | **0.131 ± 0.026** |
+| STL | Level Shift | 0.109 ± 0.099 | 0.255 ± 0.256 | **0.152 ± 0.143** |
+| STL | Gradual Drift | 0.366 ± 0.039 | 0.684 ± 0.085 | **0.476 ± 0.051** |
+| STL | OVERALL | 0.437 ± 0.058 | 0.543 ± 0.102 | **0.484 ± 0.074** |
+| Isolation Forest | Point Spike | 0.062 ± 0.005 | 0.987 ± 0.067 | **0.116 ± 0.010** |
+| Isolation Forest | Level Shift | 0.041 ± 0.016 | 0.101 ± 0.040 | **0.058 ± 0.022** |
+| Isolation Forest | Gradual Drift | 0.048 ± 0.015 | 0.074 ± 0.024 | **0.058 ± 0.019** |
+| Isolation Forest | OVERALL | 0.137 ± 0.024 | 0.135 ± 0.026 | **0.136 ± 0.025** |
 
-- **STL leads overall** at F1 = 0.757 ± 0.064. Decomposing trend +
-  seasonality + residual gives it eyes on every anomaly type. Drift
-  performance (F1 = 0.734) is the strongest of the three detectors.
-- **Z-Score is the sharpest point-spike detector** (F1 = 0.962, near
-  perfect at α = 3σ), but a stationary baseline simply cannot detect
-  level shifts or drift (F1 ≈ 0). This is exactly what a stats text
-  predicts and validates that the proposal's qualitative ratings
-  matched reality.
-- **Isolation Forest is mid-pack** (F1 = 0.319). It catches every point
-  spike (recall = 1.0 there) and partially recovers level-shift /
-  drift signal once we engineer lag, slope, and seasonal-residual
-  features, but still cannot match STL's structural decomposition on
-  univariate cost. Its strength would shine on multi-cloud, multi-tag,
-  multi-feature workloads — out of scope here, listed as future work.
+Reproduce with `python scripts/run_benchmark.py --seeds 25 --granularity service_env`.
+
+### 3.5 Interpretation
+
+**No single method wins all anomaly types** — and **no single
+granularity wins all anomaly types either**. The Phase 2 multi-granularity
+benchmark exposes a clean tradeoff:
+
+- **Z-Score's point-spike F1 jumps from 0.596 → 0.883 (+48%)** when env
+  is broken out. Lambda's dev-only runaway loop — small in absolute
+  dollars but huge relative to the dev baseline — is diluted at the
+  service level (dev is only 10% of Lambda's spend) and therefore
+  rarely crosses the 3σ threshold; once dev is its own series, the
+  spike recovers a clean σ deviation. This is the textbook case for
+  multi-granularity detection.
+- **STL's gradual-drift F1 drops from 0.615 → 0.476 (-23%)** in the
+  multi-granularity mode. The injected drift lives in S3 *prod*, which
+  is 65% of S3's spend and therefore *more* visible at the service
+  level than after env split (where the drift cell only has 1/3 of
+  the data points). Splitting too finely costs structural detectors
+  the very seasonality + trend signal they rely on.
+- **STL's level-shift F1 rises modestly** (0.057 → 0.152) because the
+  RDS staging shift lives in only 25% of RDS's spend; env split makes
+  the shift visible in its own series.
+- **Isolation Forest stays mid-pack** (0.225 → 0.136). Even with
+  contamination scaled to the group count and a tighter score
+  threshold (Phase 2 tuning), per-group `predict()` still
+  over-flags benign series. The structural advantage of multivariate
+  features doesn't recover the precision lost to having 21 series
+  instead of 7. Real multi-feature workloads (CloudTrail events,
+  request-rate ratios) — listed in §6 — would change this picture.
+
+The headline takeaway: **granularity should be matched to where the
+anomaly actually lives**. A FinOps tool would run both modes side by
+side and surface the union — exactly what `python scripts/run_pipeline.py`
+now supports through the `--granularity` flag.
 
 ### 3.4 Alert quality by severity band
 
@@ -187,29 +235,31 @@ classifier.
 
 ```
 src/cloud_anomaly/
-├── config.py            project constants, severity bands, service catalog
-├── synthetic_data.py    AWS CUR-style data generator + ground-truth labels
-├── preprocessing.py     load, aggregate (daily/per-service), gap fill
+├── config.py            project constants, severity bands, service + env catalog
+├── synthetic_data.py    AWS CUR-style data generator (env-aware) + ground-truth labels
+├── preprocessing.py     load, aggregate_by(keys), aggregate_daily, gap fill
 ├── detectors/
-│   ├── zscore.py        rolling 14-day, |z| ≥ 3
-│   ├── stl.py           STL period=7 + trend deviation
-│   └── iforest.py       IsolationForest, 13 engineered features
-├── alerts.py            severity = deviation × duration × $impact
-├── evaluation.py        Precision/Recall/F1 by anomaly type + alert quality
-├── benchmark.py         multi-seed Monte Carlo
-└── pipeline.py          run() — wires everything together
+│   ├── zscore.py        rolling 14-day, |z| ≥ 3, group_keys-aware
+│   ├── stl.py           STL period=7 + trend deviation, group_keys-aware
+│   └── iforest.py       IsolationForest, 13 engineered features, group_keys-aware
+├── alerts.py            severity = deviation × duration × $impact (per group)
+├── evaluation.py        Precision/Recall/F1 by anomaly type at any granularity
+├── benchmark.py         multi-seed Monte Carlo, granularity-aware
+└── pipeline.py          run(group_keys=...) + detector_kwargs(...) helper
 
-dashboard/app.py         Streamlit UI (4 tabs)
+dashboard/app.py         Streamlit UI (4 tabs) with sidebar Granularity radio
 scripts/
-├── run_pipeline.py      CLI: full pipeline → outputs/
-├── run_benchmark.py     CLI: 25-seed benchmark → outputs/benchmark_*.csv
+├── run_pipeline.py      CLI: --granularity {service|service_env}
+├── run_benchmark.py     CLI: --seeds N --granularity {service|service_env}
 └── make_figures.py      Renders presentation PNGs from a fresh run
-tests/                   smoke tests, run on every CI commit
+tests/                   7 smoke tests, run on every CI commit
 .github/workflows/ci.yml CI: pytest + pipeline on Python 3.11 and 3.12
 ```
 
-The same `detect(df)` interface is shared by all three detectors, which
-is what makes evaluation, alerts, and dashboard fully detector-agnostic.
+The same `detect(long_df, group_keys=...)` interface is shared by all
+three detectors; alerts, evaluation, and dashboard infer or accept the
+same keys, which is what makes evaluation, alerts, and dashboard
+fully detector-agnostic *and* granularity-agnostic.
 
 ---
 
@@ -218,9 +268,10 @@ is what makes evaluation, alerts, and dashboard fully detector-agnostic.
 1. **Synthetic data only.** The proposal explicitly scopes Phase 1 to
    synthetic CUR. Real-world cost data has heavier tails, more service
    sparsity, and different anomaly types (e.g. data transfer charges).
-2. **Univariate per-service modelling.** The pipeline treats each
-   service's daily cost as an independent series. This penalizes
-   Isolation Forest, whose strength is multi-feature anomaly density.
+2. **Univariate per-group modelling.** Each (service) or (service, env)
+   cell is treated as an independent univariate series. Isolation
+   Forest's multivariate strength still has nowhere to spread; the
+   features inside a group are all derived from a single cost signal.
 3. **No streaming or near-real-time path.** The pipeline runs in
    batch on a static parquet file. Production deployment is out of
    scope.
@@ -229,16 +280,29 @@ is what makes evaluation, alerts, and dashboard fully detector-agnostic.
    would tune the band thresholds to their tolerance for false alarms.
 5. **Threshold sensitivity.** Z-Score's `α = 3σ`, STL's residual
    threshold, and IsolationForest's `score_threshold` are global
-   defaults. Per-service tuning would improve absolute numbers but was
-   intentionally avoided to keep the comparison clean.
+   defaults. Per-group tuning would improve absolute numbers but was
+   intentionally avoided to keep the comparison clean. IForest in
+   multi-granularity mode does scale `contamination` by group count,
+   but its per-group `predict()` still over-flags benign series.
 
 ---
 
 ## 6. Future Work (Phase 2 / Level 2)
 
+Done in Phase 2 (this report):
+
+- ✅ **Multi-granularity detection** at (service, env). Surfaced a
+  clean granularity tradeoff: env-local spikes recover at fine
+  granularity (Z-Score point-spike F1 +48%), while drift in the
+  dominant env loses signal when split (STL drift F1 −23%).
+
+Remaining open items:
+
 - **Multi-cloud normalization** (GCP Billing, Azure Cost Management) on
   the same schema.
-- **Multi-granularity detection**: account / service / region / tag.
+- **Finer granularity still**: account / region / tag combinations.
+- **Adaptive IForest contamination per group** (e.g. score-distribution-
+  aware) to fix the multi-gran FP regression.
 - **Root-cause attribution**: correlate cost anomalies with deployment
   events from CloudTrail or Kubernetes audit logs.
 - **Streaming ingestion**: Kafka or Kinesis adapter so the pipeline
