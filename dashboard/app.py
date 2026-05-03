@@ -79,17 +79,38 @@ def main() -> None:
     detections = detectors[detector_name]
     alerts = build_alerts(detections, detector_name, dataset_days=long["date"].nunique())
 
+    # Tag every (date, service) row with TP / FP / FN / TN against ground truth.
+    # Used by the cost-trend overlay and the alert-log "ground_truth" column.
+    truth = labels_df[["date", "service", "is_anomaly"]].rename(
+        columns={"is_anomaly": "_truth"}
+    )
+    tagged = detections.merge(truth, on=["date", "service"], how="left")
+    tagged["_truth"] = tagged["_truth"].fillna(False).astype(bool)
+    tagged["outcome"] = "TN"
+    tagged.loc[tagged["is_anomaly"] & tagged["_truth"], "outcome"] = "TP"
+    tagged.loc[tagged["is_anomaly"] & ~tagged["_truth"], "outcome"] = "FP"
+    tagged.loc[~tagged["is_anomaly"] & tagged["_truth"], "outcome"] = "FN"
+
     # KPIs.
     total_spend = cur_df["cost"].sum()
     n_alerts = int(detections["is_anomaly"].sum())
+    n_tp = int((tagged["outcome"] == "TP").sum())
+    n_fp = int((tagged["outcome"] == "FP").sum())
+    n_fn = int((tagged["outcome"] == "FN").sum())
+    tp_precision = n_tp / max(n_tp + n_fp, 1)
     n_high = int((alerts["severity"] == "HIGH").sum()) if not alerts.empty else 0
     n_services = cur_df["service"].nunique()
 
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Total spend", f"${total_spend:,.0f}")
     k2.metric("Services", n_services)
     k3.metric("Anomalies flagged", n_alerts)
     k4.metric("HIGH-severity alerts", n_high)
+    k5.metric(
+        "True-positive rate",
+        f"{tp_precision:.0%}",
+        help=f"TP={n_tp} · FP={n_fp} · FN={n_fn} (vs. ground truth)",
+    )
 
     tab1, tab2, tab3, tab4 = st.tabs(
         ["📈 Cost trend", "🚨 Alert log", "📊 Detector comparison", "🔍 Raw data"]
@@ -97,24 +118,44 @@ def main() -> None:
 
     with tab1:
         st.subheader("Daily total cloud spend")
+        # Color-coded ground-truth overlay: TP=green, FP=red, FN=amber.
+        # A given day rolls up to the worst outcome across services so the
+        # daily-total chart still shows useful signal.
+        priority = {"FN": 3, "FP": 2, "TP": 1, "TN": 0}
+        per_day = (
+            tagged.assign(_rank=tagged["outcome"].map(priority))
+            .sort_values("_rank", ascending=False)
+            .drop_duplicates("date", keep="first")[["date", "outcome"]]
+        )
+        daily_outcome = daily.merge(per_day, on="date", how="left")
+        outcome_styles = {
+            "TP": ("True positive", "#16a34a", "circle"),
+            "FP": ("False positive", "#dc2626", "x"),
+            "FN": ("Missed (false negative)", "#f59e0b", "triangle-up"),
+        }
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=daily["date"], y=daily["cost"], name="Daily cost", mode="lines"))
-        anomaly_dates = detections.loc[detections["is_anomaly"], "date"].unique()
-        if len(anomaly_dates):
-            anomaly_daily = daily[daily["date"].isin(anomaly_dates)]
+        for code, (label, color, symbol) in outcome_styles.items():
+            sub = daily_outcome[daily_outcome["outcome"] == code]
+            if sub.empty:
+                continue
             fig.add_trace(
                 go.Scatter(
-                    x=anomaly_daily["date"],
-                    y=anomaly_daily["cost"],
+                    x=sub["date"],
+                    y=sub["cost"],
                     mode="markers",
-                    name="Anomalies",
-                    marker=dict(color="crimson", size=10, symbol="x"),
+                    name=label,
+                    marker=dict(color=color, size=11, symbol=symbol, line=dict(width=1, color="white")),
                 )
             )
         fig.update_layout(
             xaxis_title="Date", yaxis_title="Cost ($)", height=420, hovermode="x unified"
         )
         st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "🟢 True positive · 🔴 False positive · 🟡 Missed anomaly (false negative). "
+            "Color reflects the worst outcome across services on each day."
+        )
 
         st.subheader("Per-service breakdown")
         per_service = px.line(
@@ -128,12 +169,25 @@ def main() -> None:
         if alerts.empty:
             st.info("No anomalies flagged with current settings.")
         else:
-            view = alerts[alerts["severity"].isin(severity_filter)].copy()
+            outcome_lookup = tagged.set_index(["date", "service"])["outcome"]
+            enriched = alerts.copy()
+            enriched["ground_truth"] = [
+                "TP" if outcome_lookup.get((d, s)) == "TP" else "FP"
+                for d, s in zip(enriched["date"], enriched["service"])
+            ]
+            view = enriched[enriched["severity"].isin(severity_filter)].copy()
             view["date"] = view["date"].dt.strftime("%Y-%m-%d")
             view["severity_score"] = view["severity_score"].round(3)
             view["score"] = view["score"].round(3)
             view["cost"] = view["cost"].round(2)
             st.dataframe(view, use_container_width=True, hide_index=True)
+            n_view_tp = int((view["ground_truth"] == "TP").sum())
+            n_view = len(view)
+            if n_view:
+                st.caption(
+                    f"Filtered alerts: {n_view_tp} / {n_view} are true positives "
+                    f"({n_view_tp / n_view:.0%} precision in the current view)."
+                )
             st.download_button(
                 "⬇️ Download alerts (CSV)",
                 data=view.to_csv(index=False).encode("utf-8"),
