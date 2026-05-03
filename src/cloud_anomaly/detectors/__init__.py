@@ -5,11 +5,15 @@ Output schema: columns ``date``, ``service``, ``cost``, ``score``, ``is_anomaly`
 from .zscore import detect as zscore_detect
 from .stl import detect as stl_detect
 from .iforest import detect as iforest_detect
+from .ensemble import detect as ensemble_detect
 
 DETECTORS = {
     "zscore": zscore_detect,
     "stl": stl_detect,
     "iforest": iforest_detect,
+    "ensemble": ensemble_detect,
 }
 
-__all__ = ["zscore_detect", "stl_detect", "iforest_detect", "DETECTORS"]
+__all__ = [
+    "zscore_detect", "stl_detect", "iforest_detect", "ensemble_detect", "DETECTORS",
+]

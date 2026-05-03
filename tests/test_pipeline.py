@@ -13,7 +13,13 @@ from cloud_anomaly.alerts import build_alerts
 from cloud_anomaly.attribution import attribute
 from cloud_anomaly.benchmark import run as run_benchmark
 from cloud_anomaly.detectors import DETECTORS
-from cloud_anomaly.evaluation import compare_detectors, evaluate, evaluate_alerts
+from cloud_anomaly.evaluation import (
+    compare_detectors,
+    cost_saved_estimate,
+    evaluate,
+    evaluate_alerts,
+    time_to_detect,
+)
 from cloud_anomaly.preprocessing import aggregate_by_service
 from cloud_anomaly.synthetic_data import generate
 
@@ -86,3 +92,31 @@ def test_attribution_runs():
     # Empty alerts → empty (but still well-shaped) attribution frame.
     empty = attribute(cur, alerts.iloc[:0])
     assert empty.empty
+
+
+def test_ensemble_detector():
+    cur, _, _ = generate(n_days=60, seed=11)
+    long = aggregate_by_service(cur)
+    ensemble = DETECTORS["ensemble"](long)
+    assert {"date", "service", "cost", "score", "is_anomaly"} <= set(ensemble.columns)
+    assert len(ensemble) == len(long)
+
+
+def test_time_to_detect_and_cost_saved():
+    cur, labels, _ = generate(n_days=60, seed=11)
+    long = aggregate_by_service(cur)
+    detections = DETECTORS["stl"](long)
+
+    ttd = time_to_detect(detections, labels)
+    assert {
+        "service", "anomaly_type", "window_start", "window_end", "days_to_detect",
+    } <= set(ttd.columns)
+    finite = ttd["days_to_detect"].dropna()
+    if not finite.empty:
+        assert (finite >= 0).all()
+
+    saved = cost_saved_estimate(cur, detections, labels)
+    assert set(saved.keys()) == {"saved", "total_anomaly_cost", "ratio"}
+    assert saved["saved"] >= 0
+    assert saved["total_anomaly_cost"] >= 0
+    assert 0 <= saved["ratio"] <= 1.0

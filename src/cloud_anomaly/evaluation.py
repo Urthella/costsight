@@ -97,6 +97,129 @@ def compare_detectors(
     return pd.concat(frames, ignore_index=True)
 
 
+def time_to_detect(
+    detections: pd.DataFrame, labels: pd.DataFrame
+) -> pd.DataFrame:
+    """Days from anomaly onset to first detection, per ground-truth anomaly window.
+
+    Returns one row per (anomaly_window_start, service, anomaly_type) with the
+    column ``days_to_detect`` (NaN if never detected within the window).
+    """
+    truth = labels[labels["is_anomaly"]].copy()
+    if truth.empty:
+        return pd.DataFrame(columns=[
+            "service", "anomaly_type", "window_start", "window_end", "days_to_detect",
+        ])
+    truth["date"] = pd.to_datetime(truth["date"])
+    truth = truth.sort_values(["service", "anomaly_type", "date"])
+    # Group consecutive truth dates per (service, anomaly_type) into windows.
+    truth["gap"] = (
+        truth.groupby(["service", "anomaly_type"])["date"].diff().dt.days.fillna(1) > 1
+    )
+    truth["window_id"] = truth.groupby(["service", "anomaly_type"])["gap"].cumsum()
+    windows = truth.groupby(["service", "anomaly_type", "window_id"]).agg(
+        window_start=("date", "min"),
+        window_end=("date", "max"),
+    ).reset_index().drop(columns="window_id")
+
+    flagged = detections[detections["is_anomaly"]].copy()
+    flagged["date"] = pd.to_datetime(flagged["date"])
+
+    rows = []
+    for _, w in windows.iterrows():
+        mask = (
+            (flagged["service"] == w["service"])
+            & (flagged["date"] >= w["window_start"])
+            & (flagged["date"] <= w["window_end"])
+        )
+        first = flagged.loc[mask, "date"].min() if mask.any() else pd.NaT
+        ttd = (first - w["window_start"]).days if pd.notna(first) else float("nan")
+        rows.append({
+            "service": w["service"],
+            "anomaly_type": w["anomaly_type"],
+            "window_start": w["window_start"],
+            "window_end": w["window_end"],
+            "days_to_detect": ttd,
+        })
+    return pd.DataFrame(rows)
+
+
+def cost_saved_estimate(
+    cur_df: pd.DataFrame,
+    detections: pd.DataFrame,
+    labels: pd.DataFrame,
+    response_lag_days: int = 1,
+) -> dict[str, float]:
+    """Rough $ savings if anomalies had been acted on `response_lag_days` after detection.
+
+    For each (service, anomaly_window):
+      - if the detector flagged within the window, savings = sum of cost on the
+        days between (first_detection + lag) and window_end, MINUS the per-day
+        baseline (14-day rolling mean before window_start).
+      - if never flagged, savings = 0.
+    Returns dict with total $ saved, $ wasted (truth $ minus saved), and ratio.
+    """
+    cur = cur_df[["date", "service", "cost"]].copy()
+    cur["date"] = pd.to_datetime(cur["date"])
+    daily = cur.groupby(["date", "service"], as_index=False)["cost"].sum()
+
+    truth = labels[labels["is_anomaly"]].copy()
+    if truth.empty:
+        return {"saved": 0.0, "total_anomaly_cost": 0.0, "ratio": 0.0}
+    truth["date"] = pd.to_datetime(truth["date"])
+    truth = truth.sort_values(["service", "anomaly_type", "date"])
+    truth["gap"] = (
+        truth.groupby(["service", "anomaly_type"])["date"].diff().dt.days.fillna(1) > 1
+    )
+    truth["window_id"] = truth.groupby(["service", "anomaly_type"])["gap"].cumsum()
+    windows = truth.groupby(["service", "anomaly_type", "window_id"]).agg(
+        window_start=("date", "min"),
+        window_end=("date", "max"),
+    ).reset_index()
+
+    flagged = detections[detections["is_anomaly"]].copy()
+    flagged["date"] = pd.to_datetime(flagged["date"])
+
+    saved_total = 0.0
+    anomaly_cost_total = 0.0
+
+    for _, w in windows.iterrows():
+        baseline_window = daily[
+            (daily["service"] == w["service"])
+            & (daily["date"] >= w["window_start"] - pd.Timedelta(days=14))
+            & (daily["date"] < w["window_start"])
+        ]
+        baseline_per_day = baseline_window["cost"].mean() if not baseline_window.empty else 0.0
+
+        in_window = daily[
+            (daily["service"] == w["service"])
+            & (daily["date"] >= w["window_start"])
+            & (daily["date"] <= w["window_end"])
+        ]
+        excess_per_day = (in_window["cost"] - baseline_per_day).clip(lower=0)
+        anomaly_cost_total += float(excess_per_day.sum())
+
+        mask = (
+            (flagged["service"] == w["service"])
+            & (flagged["date"] >= w["window_start"])
+            & (flagged["date"] <= w["window_end"])
+        )
+        if not mask.any():
+            continue
+        first_flag = flagged.loc[mask, "date"].min()
+        action_day = first_flag + pd.Timedelta(days=response_lag_days)
+        savable = in_window[in_window["date"] >= action_day]
+        savable_excess = (savable["cost"] - baseline_per_day).clip(lower=0)
+        saved_total += float(savable_excess.sum())
+
+    ratio = saved_total / anomaly_cost_total if anomaly_cost_total else 0.0
+    return {
+        "saved": saved_total,
+        "total_anomaly_cost": anomaly_cost_total,
+        "ratio": ratio,
+    }
+
+
 def evaluate_alerts(
     alerts: pd.DataFrame, labels: pd.DataFrame
 ) -> pd.DataFrame:
