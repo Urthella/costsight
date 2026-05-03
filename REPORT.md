@@ -219,7 +219,7 @@ src/cloud_anomaly/
 ├── benchmark.py         multi-seed Monte Carlo
 └── pipeline.py          run() — wires everything together
 
-dashboard/app.py         Streamlit UI (4 tabs)
+dashboard/app.py         Streamlit UI (5 tabs)
 scripts/
 ├── run_pipeline.py      CLI: full pipeline → outputs/
 ├── run_benchmark.py     CLI: 25-seed benchmark → outputs/benchmark_*.csv
@@ -259,8 +259,11 @@ is what makes evaluation, alerts, and dashboard fully detector-agnostic.
 - **Multi-cloud normalization** (GCP Billing, Azure Cost Management) on
   the same schema.
 - **Multi-granularity detection**: account / service / region / tag.
-- **Root-cause attribution**: correlate cost anomalies with deployment
-  events from CloudTrail or Kubernetes audit logs.
+- **Causal root-cause attribution**: extend the current
+  region/usage-type hint by correlating alerts with deployment events
+  from CloudTrail or Kubernetes audit logs, so the dashboard can name
+  the *change* that caused the spend, not just the dimension it
+  landed on.
 - **Streaming ingestion**: Kafka or Kinesis adapter so the pipeline
   reacts within the hour, not the day.
 - **Cost forecasting** + budget guardrails so anomalies are caught
