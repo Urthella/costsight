@@ -19,6 +19,19 @@ SERVICES = [
     ("EBS",        "eu-west-1", "Storage",     45.0, 0.08),
 ]
 
+# Environment cost-share weights: prod is the bulk of spend, staging is
+# meaningful, dev is a small but noisy slice. Per-service totals match the
+# legacy single-env baselines exactly (weights sum to 1.0) so the
+# service-level aggregation stays backward-compatible.
+ENVIRONMENTS = [
+    ("prod",    0.65, 1.0),
+    ("staging", 0.25, 1.4),
+    ("dev",     0.10, 2.0),
+]
+# Tuple = (env name, share of service base_cost, noise multiplier).
+
+GRANULARITY_KEYS = ("service", "env")
+
 DEFAULT_DAYS = 90
 DEFAULT_SEED = 42
 
