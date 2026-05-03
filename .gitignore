@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# data artifacts
+data/raw/*.csv
+data/raw/*.parquet
+data/processed/*.csv
+data/processed/*.parquet
+outputs/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!outputs/.gitkeep

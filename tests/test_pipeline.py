@@ -1,0 +1,51 @@
+"""Smoke tests for the end-to-end pipeline."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from cloud_anomaly.alerts import build_alerts
+from cloud_anomaly.detectors import DETECTORS
+from cloud_anomaly.evaluation import compare_detectors, evaluate
+from cloud_anomaly.preprocessing import aggregate_by_service
+from cloud_anomaly.synthetic_data import generate
+
+
+def test_synthetic_dataset_shape():
+    cur, labels, anomalies = generate(n_days=60, seed=7)
+    assert {"date", "service", "region", "usage_type", "cost"} <= set(cur.columns)
+    assert (cur["cost"] > 0).all()
+    assert labels["is_anomaly"].sum() > 0
+    assert len(anomalies) >= 4
+
+
+def test_each_detector_runs():
+    cur, _, _ = generate(n_days=60, seed=7)
+    long = aggregate_by_service(cur)
+    for name, fn in DETECTORS.items():
+        det = fn(long)
+        assert {"date", "service", "cost", "score", "is_anomaly"} <= set(det.columns)
+        assert len(det) == len(long)
+
+
+def test_alerts_and_eval():
+    cur, labels, _ = generate(n_days=60, seed=7)
+    long = aggregate_by_service(cur)
+    detectors = {name: fn(long) for name, fn in DETECTORS.items()}
+
+    for name, det in detectors.items():
+        alerts = build_alerts(det, detector_name=name, dataset_days=60)
+        if not alerts.empty:
+            assert alerts["severity"].isin(["LOW", "MEDIUM", "HIGH"]).all()
+
+    metrics = evaluate(detectors["zscore"], labels)
+    assert 0.0 <= metrics.precision <= 1.0
+    assert 0.0 <= metrics.recall <= 1.0
+
+    comparison = compare_detectors(detectors, labels)
+    assert {"detector", "anomaly_type", "precision", "recall", "f1"} <= set(comparison.columns)
