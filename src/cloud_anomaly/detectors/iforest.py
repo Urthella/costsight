@@ -1,7 +1,8 @@
 """Isolation Forest detector.
 
-Trains one IsolationForest per service on a multivariate feature set
-engineered to expose all three target anomaly types:
+Trains one IsolationForest per group (default: per service) on a
+multivariate feature set engineered to expose all three target anomaly
+types:
 
     - cost / log_cost           raw + log-scale spend
     - rel_to_median / rel_mean  cost normalized vs. recent baselines
@@ -17,6 +18,8 @@ Anomalies are flagged via the model's native ``predict`` (driven by
 ``-decision_function`` is exposed as ``score``.
 """
 from __future__ import annotations
+
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -87,26 +90,37 @@ def detect(
     random_state: int = 42,
     n_estimators: int = 400,
     score_threshold: float = 0.55,
+    group_keys: Sequence[str] = ("service",),
 ) -> pd.DataFrame:
     """Args:
-        long_df: columns ``date``, ``service``, ``cost``.
-        contamination: expected fraction of anomalous days per service.
+        long_df: columns ``date``, *``group_keys``, ``cost``.
+        contamination: expected fraction of anomalous days per group.
             Tuned to the synthetic dataset's injected anomaly rate.
         n_estimators: forest size.
         score_threshold: secondary cutoff on the normalized [0, 1] score.
             A point must pass both ``predict()`` and exceed this to flag,
-            which prunes the per-service over-flagging that contaminates
-            services with no real anomalies.
+            which prunes the per-group over-flagging that contaminates
+            groups with no real anomalies.
+        group_keys: columns that identify an independent series. Defaults to
+            ``("service",)`` for backward compatibility; pass
+            ``("service", "env")`` for multi-granularity scoring — that is
+            where IsolationForest's multivariate strength actually shows
+            up versus structural decomposition (STL).
     """
+    keys = list(group_keys)
     out = []
-    for service, sub in long_df.groupby("service"):
+    for group_vals, sub in long_df.groupby(keys, sort=False):
+        if not isinstance(group_vals, tuple):
+            group_vals = (group_vals,)
         feats = _features(sub)
+        for k, v in zip(keys, group_vals):
+            feats[k] = v
         X = feats[FEATURE_COLS].to_numpy()
 
         if len(X) < 14:
             feats["score"] = 0.0
             feats["is_anomaly"] = False
-            out.append(feats[["date", "service", "cost", "score", "is_anomaly"]])
+            out.append(feats[["date", *keys, "cost", "score", "is_anomaly"]])
             continue
 
         model = IsolationForest(
@@ -122,7 +136,10 @@ def detect(
         predicted = model.predict(X) == -1
         feats["score"] = score
         feats["is_anomaly"] = predicted & (score >= score_threshold)
-        feats["service"] = service
-        out.append(feats[["date", "service", "cost", "score", "is_anomaly"]])
+        out.append(feats[["date", *keys, "cost", "score", "is_anomaly"]])
 
-    return pd.concat(out, ignore_index=True).sort_values(["date", "service"]).reset_index(drop=True)
+    return (
+        pd.concat(out, ignore_index=True)
+        .sort_values(["date", *keys])
+        .reset_index(drop=True)
+    )
