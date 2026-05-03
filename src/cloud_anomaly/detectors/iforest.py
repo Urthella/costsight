@@ -1,16 +1,16 @@
 """Isolation Forest detector.
 
 Trains one IsolationForest per service on a multivariate feature set
-designed to expose all three target anomaly types:
+engineered to expose all three target anomaly types:
 
-    - cost              raw daily spend
-    - log_cost          log scale (heavy-tail robustness)
-    - rel_to_median     cost / 14-day rolling median (point spikes pop)
-    - rel_to_mean       cost / 14-day rolling mean
-    - roll_std_14       rolling std (level-shift signature)
-    - pct_change        day-over-day change (sudden moves)
-    - trend_dev         cost minus 28-day rolling median (drift signature)
-    - dow_sin / dow_cos cyclic day-of-week encoding
+    - cost / log_cost           raw + log-scale spend
+    - rel_to_median / rel_mean  cost normalized vs. recent baselines
+    - roll_std_14               rolling std (level-shift signature)
+    - pct_change                day-over-day change (sudden moves)
+    - trend_dev / trend_slope   30-day deviation + slope (drift signature)
+    - lag_1 / lag_7             yesterday + same-weekday-last-week ratios
+    - season_resid              residual after removing weekly seasonality
+    - dow_sin / dow_cos         cyclic day-of-week encoding
 
 Anomalies are flagged via the model's native ``predict`` (driven by
 ``contamination``); the per-service min-max-normalized
@@ -31,6 +31,10 @@ FEATURE_COLS = [
     "roll_std_14",
     "pct_change",
     "trend_dev",
+    "trend_slope",
+    "lag_1_ratio",
+    "lag_7_ratio",
+    "season_resid",
     "dow_sin",
     "dow_cos",
 ]
@@ -42,37 +46,57 @@ def _features(sub: pd.DataFrame) -> pd.DataFrame:
 
     roll_median_14 = cost.rolling(14, min_periods=3).median()
     roll_mean_14 = cost.rolling(14, min_periods=3).mean()
-    roll_median_28 = cost.rolling(28, min_periods=3).median()
+    roll_median_30 = cost.rolling(30, min_periods=3).median()
 
     sub["log_cost"] = np.log1p(cost)
     sub["rel_to_median"] = (cost / roll_median_14.replace(0, np.nan)).fillna(1.0)
     sub["rel_to_mean"] = (cost / roll_mean_14.replace(0, np.nan)).fillna(1.0)
     sub["roll_std_14"] = cost.rolling(14, min_periods=3).std().fillna(0.0)
     sub["pct_change"] = cost.pct_change().fillna(0.0)
-    sub["trend_dev"] = (cost - roll_median_28).fillna(0.0)
+    sub["trend_dev"] = (cost - roll_median_30).fillna(0.0)
+
+    # Local trend slope: simple finite-difference of the 14-day rolling mean.
+    sub["trend_slope"] = roll_mean_14.diff().fillna(0.0)
+
+    # Lag ratios: how much higher than yesterday / a week ago is today?
+    sub["lag_1_ratio"] = (cost / cost.shift(1).replace(0, np.nan)).fillna(1.0)
+    sub["lag_7_ratio"] = (cost / cost.shift(7).replace(0, np.nan)).fillna(1.0)
+
+    # Weekly-seasonality-aware residual: subtract the same-weekday median
+    # over the trailing 4-week window. Spike survives, level shift survives,
+    # benign weekly seasonality cancels out.
+    dow_med = (
+        cost.groupby(sub["date"].dt.weekday)
+        .transform(lambda s: s.rolling(4, min_periods=1).median())
+    )
+    sub["season_resid"] = (cost - dow_med).fillna(0.0)
 
     dow = sub["date"].dt.weekday
     sub["dow_sin"] = np.sin(2 * np.pi * dow / 7.0)
     sub["dow_cos"] = np.cos(2 * np.pi * dow / 7.0)
 
-    return sub.bfill().ffill()
+    # Replace any inf produced by ratios with the column median.
+    sub = sub.replace([np.inf, -np.inf], np.nan)
+    sub = sub.bfill().ffill().fillna(0.0)
+    return sub
 
 
 def detect(
     long_df: pd.DataFrame,
-    contamination: float = 0.05,
+    contamination: float = 0.08,
     random_state: int = 42,
-    n_estimators: int = 300,
-    score_threshold: float = 0.6,
+    n_estimators: int = 400,
+    score_threshold: float = 0.55,
 ) -> pd.DataFrame:
     """Args:
         long_df: columns ``date``, ``service``, ``cost``.
-        contamination: expected fraction of anomalous days per service —
-            kept low so sklearn's intrinsic cutoff is conservative.
+        contamination: expected fraction of anomalous days per service.
+            Tuned to the synthetic dataset's injected anomaly rate.
         n_estimators: forest size.
         score_threshold: secondary cutoff on the normalized [0, 1] score.
             A point must pass both ``predict()`` and exceed this to flag,
-            which prunes noisy service-level over-flagging.
+            which prunes the per-service over-flagging that contaminates
+            services with no real anomalies.
     """
     out = []
     for service, sub in long_df.groupby("service"):

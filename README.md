@@ -86,7 +86,7 @@ dataset (seed = 42). Full table in [`examples/comparison.csv`](examples/comparis
 |---|---:|---:|---:|---:|
 | **Z-Score**         | **1.000** | 0.000 | 0.000 | 0.107 |
 | **STL**             | 0.500 | **0.684** | **0.767** | **0.796** |
-| **Isolation Forest**| 0.333 | 0.229 | 0.170 | 0.290 |
+| **Isolation Forest**| 0.240 | 0.273 | 0.214 | 0.345 |
 
 ### Headline takeaways
 

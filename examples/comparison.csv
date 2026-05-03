@@ -7,7 +7,7 @@ stl,gradual_drift,0.7931,0.7419,0.7667,23,6,8
 stl,level_shift,0.6842,0.6842,0.6842,13,6,6
 stl,point_spike,0.3333,1.0,0.5,3,6,0
 stl,OVERALL,0.8667,0.7358,0.7959,39,6,14
-iforest,gradual_drift,0.25,0.129,0.1702,4,12,27
-iforest,level_shift,0.25,0.2105,0.2286,4,12,15
-iforest,point_spike,0.2,1.0,0.3333,3,12,0
-iforest,OVERALL,0.4783,0.2075,0.2895,11,12,42
+iforest,gradual_drift,0.24,0.1935,0.2143,6,19,25
+iforest,level_shift,0.24,0.3158,0.2727,6,19,13
+iforest,point_spike,0.1364,1.0,0.24,3,19,0
+iforest,OVERALL,0.4412,0.283,0.3448,15,19,38
