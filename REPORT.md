@@ -87,7 +87,26 @@ the model's native `predict(...) == -1` and a normalized score
 threshold of 0.55 — combining sklearn's intrinsic cutoff with a guard
 against per-service over-flagging.
 
-### 2.3 Alert module
+### 2.3 Root-cause attribution
+
+For every alert, we ask: *which CUR dimension drove the spend above its
+14-day baseline?* The attribution module groups the day's rows by
+`region` and `usage_type`, computes a per-value baseline from the
+trailing 14-day window, picks the (dimension, value) pair with the
+largest positive delta, and emits a short summary string:
+
+> *EC2 spend on 2025-03-19 is $957 (+391% vs 14-day baseline);
+> us-east-1 region drove 100% of the increase.*
+
+This is intentionally a deterministic, ratio-based hint rather than a
+full causal-inference engine — Level 2 work would correlate these
+hints against deployment events, autoscaler actions, and IAM policy
+changes. But even the simple version is immediately useful at the
+dashboard level: a FinOps engineer sees the dollar delta, the dominant
+dimension, and the share of the increase that dimension explained, in
+one glance.
+
+### 2.4 Alert module
 
 `severity = deviation × (0.4 + 0.6·duration_norm) × (0.4 + 0.6·dollar_norm)`,
 clipped to `[0, 1]` and bucketed into:
@@ -101,14 +120,14 @@ is the length of the contiguous flagged-day run the point belongs to,
 and `dollar` is `cost / service_mean` capped at 5×. Output is written as
 both CSV and JSON for FinOps tooling.
 
-### 2.4 Dashboard
+### 2.5 Dashboard
 
 A Streamlit app (`dashboard/app.py`) with sidebar controls (regenerate
-data, change horizon, switch detector, filter severities) and four
-tabs: cost trend with anomaly markers + per-service breakdown; alert
-log with CSV download; detector comparison with the F1-by-type bar
-chart; raw data inspector with the synthetic CUR rows and ground-truth
-labels.
+data, change horizon, switch detector, filter severities) and **five
+tabs**: cost trend with anomaly markers + per-service breakdown; alert
+log with CSV download; **root-cause attribution** with one-line hints;
+detector comparison with the F1-by-type bar chart; raw data inspector
+with the synthetic CUR rows and ground-truth labels.
 
 ---
 
@@ -195,6 +214,7 @@ src/cloud_anomaly/
 │   ├── stl.py           STL period=7 + trend deviation
 │   └── iforest.py       IsolationForest, 13 engineered features
 ├── alerts.py            severity = deviation × duration × $impact
+├── attribution.py       root-cause hint per alert (region / usage_type)
 ├── evaluation.py        Precision/Recall/F1 by anomaly type + alert quality
 ├── benchmark.py         multi-seed Monte Carlo
 └── pipeline.py          run() — wires everything together

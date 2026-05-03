@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from cloud_anomaly.alerts import build_alerts  # noqa: E402
+from cloud_anomaly.attribution import attribute  # noqa: E402
 from cloud_anomaly.config import RAW_DIR  # noqa: E402
 from cloud_anomaly.detectors import DETECTORS  # noqa: E402
 from cloud_anomaly.evaluation import compare_detectors  # noqa: E402
@@ -91,8 +92,8 @@ def main() -> None:
     k3.metric("Anomalies flagged", n_alerts)
     k4.metric("HIGH-severity alerts", n_high)
 
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["📈 Cost trend", "🚨 Alert log", "📊 Detector comparison", "🔍 Raw data"]
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["📈 Cost trend", "🚨 Alert log", "🔎 Root-cause", "📊 Detector comparison", "🗂️ Raw data"]
     )
 
     with tab1:
@@ -142,6 +143,36 @@ def main() -> None:
             )
 
     with tab3:
+        st.subheader("Root-cause attribution")
+        st.caption(
+            "For every flagged (date, service), we decompose the spend along "
+            "region and usage_type and report the dimension that drove the "
+            "increase the most vs. the 14-day rolling baseline."
+        )
+        attribution_df = attribute(cur_df, alerts)
+        if attribution_df.empty:
+            st.info("No alerts → no attributions to compute.")
+        else:
+            view = attribution_df[attribution_df["severity"].isin(severity_filter)].copy()
+            if view.empty:
+                st.info("No attributions match the active severity filter.")
+            else:
+                view["date"] = view["date"].dt.strftime("%Y-%m-%d")
+                view["top_value_share"] = (view["top_value_share"] * 100).round(0).astype(int).astype(str) + "%"
+                display = view[[
+                    "date", "service", "severity", "summary",
+                    "top_dimension", "top_value", "top_value_share",
+                    "total_cost", "baseline_cost", "delta",
+                ]]
+                st.dataframe(display, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "⬇️ Download attributions (CSV)",
+                    data=view.drop(columns=["top_value_share"]).to_csv(index=False).encode("utf-8"),
+                    file_name=f"attribution_{detector_name}.csv",
+                    mime="text/csv",
+                )
+
+    with tab4:
         st.subheader("Precision / Recall by anomaly type")
         comparison = compare_detectors(detectors, labels_df)
         st.dataframe(
@@ -160,7 +191,7 @@ def main() -> None:
         )
         st.plotly_chart(chart, use_container_width=True)
 
-    with tab4:
+    with tab5:
         st.subheader("Synthetic CUR rows (sample)")
         st.dataframe(cur_df.head(200), use_container_width=True, hide_index=True)
         st.subheader("Ground-truth labels")

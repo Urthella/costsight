@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from cloud_anomaly.alerts import build_alerts
+from cloud_anomaly.attribution import attribute
 from cloud_anomaly.benchmark import run as run_benchmark
 from cloud_anomaly.detectors import DETECTORS
 from cloud_anomaly.evaluation import compare_detectors, evaluate, evaluate_alerts
@@ -64,3 +65,24 @@ def test_benchmark_runs():
     assert {"detector", "anomaly_type", "f1_mean", "f1_std", "n_runs"} <= set(result.summary.columns)
     assert (result.summary["n_runs"] == 3).all()
     assert result.raw["seed"].nunique() == 3
+
+
+def test_attribution_runs():
+    cur, _, _ = generate(n_days=60, seed=11)
+    long = aggregate_by_service(cur)
+    detections = DETECTORS["stl"](long)
+    alerts = build_alerts(detections, detector_name="stl", dataset_days=60)
+
+    if alerts.empty:
+        return
+
+    attribution = attribute(cur, alerts)
+    assert {
+        "date", "service", "total_cost", "baseline_cost", "delta",
+        "severity", "top_dimension", "top_value", "top_value_share",
+        "top_value_delta", "summary",
+    } <= set(attribution.columns)
+    assert (attribution["top_value_share"].between(0.0, 1.0)).all()
+    # Empty alerts → empty (but still well-shaped) attribution frame.
+    empty = attribute(cur, alerts.iloc[:0])
+    assert empty.empty

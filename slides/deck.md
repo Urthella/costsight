@@ -202,10 +202,10 @@ FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
 
 - **Working Python pipeline** — 3 detectors, all green on CI
 - **Automated alert system** — JSON + CSV, severity-banded
-- **Live Streamlit dashboard** — 4 tabs: trend, alerts, comparison, raw
-- **Documented GitHub repo** — README, REPORT, DEMO, examples
+- **Root-cause hints** — *"us-east-1 region drove 100% of the increase"*
+- **Live Streamlit dashboard** — 5 tabs incl. root-cause + comparison
+- **Documented GitHub repo** — README, REPORT, DEMO, examples, MIT license
 - **Multi-seed benchmark** — 25 seeds, mean ± std reported
-- **Comparison report** — per-anomaly-type Precision/Recall/F1
 - **Demo video** — 2-minute walkthrough of the dashboard
 
 ---

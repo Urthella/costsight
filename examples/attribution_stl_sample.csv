@@ -1,0 +1,46 @@
+date,service,total_cost,baseline_cost,delta,severity,top_dimension,top_value,top_value_share,top_value_delta,summary
+2025-03-19,EC2,957.04,194.96,762.08,LOW,region,us-east-1,1.0,762.08,EC2 spend on 2025-03-19 is $957 (+391% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-02-07,RDS,323.98,152.73,171.25,LOW,region,eu-west-1,1.0,171.25,RDS spend on 2025-02-07 is $324 (+112% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-02-06,RDS,291.53,143.34,148.19,LOW,region,eu-west-1,1.0,148.19,RDS spend on 2025-02-06 is $292 (+103% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-02-17,RDS,346.96,241.03,105.92,LOW,region,eu-west-1,1.0,105.92,RDS spend on 2025-02-17 is $347 (+44% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-02-11,RDS,280.03,186.43,93.6,LOW,region,eu-west-1,1.0,93.6,RDS spend on 2025-02-11 is $280 (+50% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-02-16,RDS,308.93,228.39,80.54,LOW,region,eu-west-1,1.0,80.54,RDS spend on 2025-02-16 is $309 (+35% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-02-12,RDS,277.45,197.19,80.26,LOW,region,eu-west-1,1.0,80.26,RDS spend on 2025-02-12 is $277 (+41% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-02-02,DynamoDB,100.28,34.14,66.14,LOW,region,us-east-1,1.0,66.14,DynamoDB spend on 2025-02-02 is $100 (+194% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-02-14,RDS,274.14,212.63,61.51,LOW,region,eu-west-1,1.0,61.51,RDS spend on 2025-02-14 is $274 (+29% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-03-28,S3,164.75,116.43,48.32,LOW,region,us-east-1,1.0,48.32,S3 spend on 2025-03-28 is $165 (+42% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-14,S3,129.59,82.05,47.54,LOW,region,us-east-1,1.0,47.54,S3 spend on 2025-03-14 is $130 (+58% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-18,S3,127.84,91.99,35.85,LOW,region,us-east-1,1.0,35.85,S3 spend on 2025-03-18 is $128 (+39% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-27,S3,142.16,113.19,28.97,LOW,region,us-east-1,1.0,28.97,S3 spend on 2025-03-27 is $142 (+26% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-19,S3,124.07,96.26,27.81,LOW,region,us-east-1,1.0,27.81,S3 spend on 2025-03-19 is $124 (+29% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-02-19,S3,95.55,69.54,26.01,LOW,region,us-east-1,1.0,26.01,S3 spend on 2025-02-19 is $96 (+37% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-21,S3,124.02,101.82,22.2,LOW,region,us-east-1,1.0,22.2,S3 spend on 2025-03-21 is $124 (+22% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-20,S3,120.09,99.4,20.69,LOW,region,us-east-1,1.0,20.69,S3 spend on 2025-03-20 is $120 (+21% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-02-18,S3,88.73,68.9,19.83,LOW,region,us-east-1,1.0,19.83,S3 spend on 2025-02-18 is $89 (+29% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-24,S3,126.12,106.58,19.54,LOW,region,us-east-1,1.0,19.54,S3 spend on 2025-03-24 is $126 (+18% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-02-13,RDS,226.4,207.2,19.2,LOW,region,eu-west-1,1.0,19.2,RDS spend on 2025-02-13 is $226 (+9% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-03-13,S3,96.77,80.36,16.41,LOW,region,us-east-1,1.0,16.4,S3 spend on 2025-03-13 is $97 (+20% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-10,S3,91.95,75.89,16.06,LOW,region,us-east-1,1.0,16.06,S3 spend on 2025-03-10 is $92 (+21% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-01-16,CloudFront,44.52,29.07,15.45,LOW,region,us-east-1,1.0,15.45,CloudFront spend on 2025-01-16 is $45 (+53% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-17,S3,104.09,89.63,14.46,LOW,region,us-east-1,1.0,14.46,S3 spend on 2025-03-17 is $104 (+16% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-16,S3,100.49,86.92,13.57,LOW,region,us-east-1,1.0,13.57,S3 spend on 2025-03-16 is $100 (+16% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-12,S3,91.99,78.77,13.22,LOW,region,us-east-1,1.0,13.22,S3 spend on 2025-03-12 is $92 (+17% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-02-15,RDS,231.85,219.34,12.51,LOW,region,eu-west-1,1.0,12.51,RDS spend on 2025-02-15 is $232 (+6% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-03-09,S3,85.79,74.26,11.53,LOW,region,us-east-1,1.0,11.53,S3 spend on 2025-03-09 is $86 (+16% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-11,S3,87.53,77.59,9.94,LOW,region,us-east-1,1.0,9.94,S3 spend on 2025-03-11 is $88 (+13% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-25,S3,118.16,109.02,9.14,LOW,region,us-east-1,1.0,9.14,S3 spend on 2025-03-25 is $118 (+8% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-26,S3,119.67,111.21,8.46,LOW,region,us-east-1,1.0,8.46,S3 spend on 2025-03-26 is $120 (+8% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-23,S3,112.17,104.7,7.47,LOW,region,us-east-1,1.0,7.47,S3 spend on 2025-03-23 is $112 (+7% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-24,EBS,52.89,48.09,4.8,LOW,region,eu-west-1,1.0,4.8,EBS spend on 2025-03-24 is $53 (+10% vs 14-day baseline); eu-west-1 region drove 100% of the increase.
+2025-03-29,S3,121.92,118.94,2.98,LOW,region,us-east-1,1.0,2.98,S3 spend on 2025-03-29 is $122 (+3% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-30,S3,120.66,121.71,-1.05,LOW,,,0.0,0.0,S3 spend on 2025-03-30 is $121 (delta $-1 vs baseline).
+2025-02-19,RDS,259.24,261.42,-2.18,LOW,,,0.0,0.0,RDS spend on 2025-02-19 is $259 (delta $-2 vs baseline).
+2025-03-15,S3,83.18,85.44,-2.26,LOW,,,0.0,0.0,S3 spend on 2025-03-15 is $83 (delta $-2 vs baseline).
+2025-03-22,S3,98.38,103.17,-4.79,LOW,,,0.0,0.0,S3 spend on 2025-03-22 is $98 (delta $-5 vs baseline).
+2025-03-01,EBS,36.53,48.66,-12.13,LOW,,,0.0,0.0,EBS spend on 2025-03-01 is $37 (delta $-12 vs baseline).
+2025-02-21,RDS,247.07,261.18,-14.11,LOW,,,0.0,0.0,RDS spend on 2025-02-21 is $247 (delta $-14 vs baseline).
+2025-02-18,RDS,236.16,255.32,-19.16,LOW,,,0.0,0.0,RDS spend on 2025-02-18 is $236 (delta $-19 vs baseline).
+2025-01-05,S3,50.21,69.85,-19.64,LOW,region,us-east-1,0.0,30.25,S3 spend on 2025-01-05 is $50 (-28% vs 14-day baseline); us-east-1 region drove 0% of the increase.
+2025-02-20,RDS,211.51,266.9,-55.39,LOW,,,0.0,0.0,RDS spend on 2025-02-20 is $212 (delta $-55 vs baseline).
+2025-01-23,Lambda,53.77,5.39,48.38,MEDIUM,region,us-east-1,1.0,48.38,Lambda spend on 2025-01-23 is $54 (+897% vs 14-day baseline); us-east-1 region drove 100% of the increase.
+2025-03-31,S3,154.2,123.15,31.05,MEDIUM,region,us-east-1,1.0,31.05,S3 spend on 2025-03-31 is $154 (+25% vs 14-day baseline); us-east-1 region drove 100% of the increase.

@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from .alerts import build_alerts, write_alerts
+from .attribution import attribute
 from .config import OUTPUTS_DIR, RAW_DIR
 from .detectors import DETECTORS
 from .evaluation import compare_detectors, evaluate_alerts
@@ -31,6 +32,7 @@ def run(
 
     detector_outputs: dict[str, pd.DataFrame] = {}
     alerts_by_detector: dict[str, pd.DataFrame] = {}
+    attributions_by_detector: dict[str, pd.DataFrame] = {}
 
     for name, fn in DETECTORS.items():
         detections = fn(long)
@@ -41,6 +43,11 @@ def run(
         alerts = build_alerts(detections, detector_name=name, dataset_days=long["date"].nunique())
         alerts_by_detector[name] = alerts
         write_alerts(alerts, name, out_dir=out_dir)
+
+        attribution_df = attribute(cur_df, alerts)
+        attributions_by_detector[name] = attribution_df
+        if not attribution_df.empty:
+            attribution_df.to_csv(out_dir / f"attribution_{name}.csv", index=False)
 
     comparison = compare_detectors(detector_outputs, labels_df)
     comparison.to_csv(out_dir / "comparison.csv", index=False)
@@ -66,6 +73,7 @@ def run(
         "long": long,
         "detections": detector_outputs,
         "alerts": alerts_by_detector,
+        "attributions": attributions_by_detector,
         "comparison": comparison,
         "alert_quality": alert_quality,
     }

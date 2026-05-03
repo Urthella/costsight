@@ -33,6 +33,7 @@ Outputs land in `outputs/`:
 
 - `detections_{detector}.csv` — per-day detector flags + scores
 - `alerts_{detector}.{csv,json}` — severity-banded alert log
+- `attribution_{detector}.csv` — root-cause hint per alert (which region / usage_type drove the spend)
 - `comparison.csv` — Precision / Recall / F1 by anomaly type, per detector
 - `alert_quality.csv` — alert quality (true-positive rate) by severity band
 
@@ -57,6 +58,7 @@ src/cloud_anomaly/
   preprocessing.py     load, aggregate, pivot, gap-fill
   detectors/           zscore, stl, iforest — common detect(df) interface
   alerts.py            severity = deviation × duration × $impact
+  attribution.py       root-cause hint per alert (region / usage_type)
   evaluation.py        Precision / Recall, per-anomaly-type, alert quality
   benchmark.py         multi-seed Monte Carlo runner
   pipeline.py          run() — wires everything together
@@ -127,6 +129,25 @@ Mean ± std across **25 random seeds** (`python scripts/run_benchmark.py
   struggles to flag persistent shifts because they look "in distribution"
   once they stabilise — a known limitation of unsupervised tree models on
   univariate cost data.
+
+## Root-cause attribution
+
+For every alert the pipeline produces a one-line, human-readable hint
+about *which* CUR dimension drove the spend above its 14-day baseline:
+
+> *EC2 spend on 2025-03-19 is $957 (+391% vs 14-day baseline);
+> us-east-1 region drove 100% of the increase.*
+
+Attribution is computed per (date, service) by decomposing the spend
+along `region` and `usage_type`, comparing against the trailing
+14-day per-value baseline, and reporting the dimension+value that
+contributed most to the anomaly delta. Available in
+[`outputs/attribution_{detector}.csv`](examples/attribution_stl_sample.csv)
+and on the dashboard's *Root-cause* tab.
+
+This is a Level-1-friendly take on the Level-2 "root-cause attribution"
+deliverable — concise, deterministic, and immediately useful for FinOps
+triage.
 
 ## Running tests
 
