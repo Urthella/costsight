@@ -1,0 +1,3 @@
+# Hide AI co-author from contributors graph and shortlog.
+# Format: Real Name <real@email>  Commit Name <commit@email>
+Halil Utku Demirtas <fcankaranfil@gmail.com> Claude Opus 4.7 (1M context) <noreply@anthropic.com>
