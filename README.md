@@ -1,7 +1,9 @@
-# Automated Cloud Cost Anomaly Detection
+# costsight — Automated Cloud Cost Anomaly Detection
 
 Project 13 · Cloud Computing · Spring 2025–2026
 **Furkan Can Karafil · Halil Utku Demirtaş**
+
+[![CI](https://github.com/Urthella/costsight/actions/workflows/ci.yml/badge.svg)](https://github.com/Urthella/costsight/actions/workflows/ci.yml)
 
 End-to-end pipeline that ingests AWS CUR-style billing data, runs three
 anomaly detectors in parallel (STL Decomposition, Isolation Forest, Z-Score),
@@ -72,6 +74,32 @@ Every detector returns a frame with:
 
 This is what makes the alert module and evaluation framework
 detector-agnostic.
+
+## Empirical results
+
+Output of `python scripts/run_pipeline.py` on the default 90-day synthetic
+dataset (seed = 42). Full table in [`examples/comparison.csv`](examples/comparison.csv).
+
+### F1 by anomaly type
+
+| Detector | Point spike | Level shift | Gradual drift | Overall |
+|---|---:|---:|---:|---:|
+| **Z-Score**         | **1.000** | 0.000 | 0.000 | 0.107 |
+| **STL**             | 0.500 | **0.684** | **0.767** | **0.796** |
+| **Isolation Forest**| 0.333 | 0.229 | 0.170 | 0.290 |
+
+### Headline takeaways
+
+- **No single method wins all anomaly types** — the central thesis of the
+  project is empirically supported.
+- **STL** is the strongest overall detector and handles trend-based
+  anomalies (drift, level shift) cleanly.
+- **Z-Score** is a perfect point-spike detector but completely blind to
+  drift and level shifts, exactly as expected from a stationary baseline.
+- **Isolation Forest** catches every point spike (recall = 1.0 there) but
+  struggles to flag persistent shifts because they look "in distribution"
+  once they stabilise — a known limitation of unsupervised tree models on
+  univariate cost data.
 
 ## Running tests
 

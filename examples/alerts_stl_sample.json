@@ -1,0 +1,407 @@
+[
+  {
+    "date": "2025-03-31",
+    "service": "S3",
+    "cost": 154.2,
+    "score": 10.990000016241693,
+    "severity_score": 0.3469440692097808,
+    "severity": "MEDIUM",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-01-23",
+    "service": "Lambda",
+    "cost": 53.77,
+    "score": 8.981996433122262,
+    "severity_score": 0.3323507085850093,
+    "severity": "MEDIUM",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-19",
+    "service": "EC2",
+    "cost": 957.04,
+    "score": 8.88213690891274,
+    "severity_score": 0.31716328543588945,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-28",
+    "service": "S3",
+    "cost": 164.75,
+    "score": 9.715212116443093,
+    "severity_score": 0.31429004443062336,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-30",
+    "service": "S3",
+    "cost": 120.66,
+    "score": 10.565430134334717,
+    "severity_score": 0.30727255185026336,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-29",
+    "service": "S3",
+    "cost": 121.92,
+    "score": 10.140447599656426,
+    "severity_score": 0.2958576229197811,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-27",
+    "service": "S3",
+    "cost": 142.16,
+    "score": 9.290023825608317,
+    "severity_score": 0.28497755180449585,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-26",
+    "service": "S3",
+    "cost": 119.67,
+    "score": 8.866706731371753,
+    "severity_score": 0.2572091839996509,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-25",
+    "service": "S3",
+    "cost": 118.16,
+    "score": 8.448551083162107,
+    "severity_score": 0.24413094980051064,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-24",
+    "service": "S3",
+    "cost": 126.12,
+    "score": 8.03743929834065,
+    "severity_score": 0.23699049910700043,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-23",
+    "service": "S3",
+    "cost": 112.17,
+    "score": 7.623880631560884,
+    "severity_score": 0.21691098845532364,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-02",
+    "service": "DynamoDB",
+    "cost": 100.28,
+    "score": 7.649036791533475,
+    "severity_score": 0.2153950029269122,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-21",
+    "service": "S3",
+    "cost": 124.02,
+    "score": 6.853802032251288,
+    "severity_score": 0.201014834216682,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-22",
+    "service": "S3",
+    "cost": 98.38,
+    "score": 7.22062752656935,
+    "severity_score": 0.19805511555652652,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-20",
+    "service": "S3",
+    "cost": 120.09,
+    "score": 6.501229912011474,
+    "severity_score": 0.1887777706273208,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-19",
+    "service": "S3",
+    "cost": 124.07,
+    "score": 6.161695217899692,
+    "severity_score": 0.18073314828031467,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-18",
+    "service": "S3",
+    "cost": 127.84,
+    "score": 5.8169182170091,
+    "severity_score": 0.17224227208632295,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-17",
+    "service": "S3",
+    "cost": 104.09,
+    "score": 5.474050624736357,
+    "severity_score": 0.15245164211506737,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-16",
+    "service": "S3",
+    "cost": 100.49,
+    "score": 5.149457722852219,
+    "severity_score": 0.14203476851697822,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-14",
+    "service": "S3",
+    "cost": 129.59,
+    "score": 4.541374156080362,
+    "severity_score": 0.13504900202435655,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-15",
+    "service": "S3",
+    "cost": 83.18,
+    "score": 4.834585536305194,
+    "severity_score": 0.12714494666533968,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-13",
+    "service": "S3",
+    "cost": 96.77,
+    "score": 4.27873713342417,
+    "severity_score": 0.11682962731641691,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-12",
+    "service": "S3",
+    "cost": 91.99,
+    "score": 4.012939933889229,
+    "severity_score": 0.10814746829881557,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-17",
+    "service": "RDS",
+    "cost": 346.96,
+    "score": 3.80349189659295,
+    "severity_score": 0.10479223653207478,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-16",
+    "service": "RDS",
+    "cost": 308.93,
+    "score": 3.8557081587404207,
+    "severity_score": 0.10186609529356226,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-11",
+    "service": "S3",
+    "cost": 87.53,
+    "score": 3.726019254592193,
+    "severity_score": 0.09917997250430323,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-14",
+    "service": "RDS",
+    "cost": 274.14,
+    "score": 3.825635880423683,
+    "severity_score": 0.09710876968682758,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-06",
+    "service": "RDS",
+    "cost": 291.53,
+    "score": 4.137836714311757,
+    "severity_score": 0.09359377307870129,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-15",
+    "service": "RDS",
+    "cost": 231.85,
+    "score": 3.876405225029973,
+    "severity_score": 0.0935175376115982,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-10",
+    "service": "S3",
+    "cost": 91.95,
+    "score": 3.4203983282414177,
+    "severity_score": 0.09216079333497193,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-19",
+    "service": "RDS",
+    "cost": 259.24,
+    "score": 3.632983754797432,
+    "severity_score": 0.09060452309090061,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-18",
+    "service": "RDS",
+    "cost": 236.16,
+    "score": 3.7348273017259697,
+    "severity_score": 0.09057951806552463,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-12",
+    "service": "RDS",
+    "cost": 277.45,
+    "score": 3.507639174449135,
+    "severity_score": 0.08937838279526944,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-13",
+    "service": "RDS",
+    "cost": 226.4,
+    "score": 3.6977004461693492,
+    "severity_score": 0.08860419649219663,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-07",
+    "service": "RDS",
+    "cost": 323.98,
+    "score": 3.664378937295213,
+    "severity_score": 0.08597090759019124,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-11",
+    "service": "RDS",
+    "cost": 280.03,
+    "score": 3.2723873097280562,
+    "severity_score": 0.08363192911614607,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-09",
+    "service": "S3",
+    "cost": 85.79,
+    "score": 3.097602984299587,
+    "severity_score": 0.08204461289282301,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-20",
+    "service": "RDS",
+    "cost": 211.51,
+    "score": 3.4628798795724354,
+    "severity_score": 0.08143946267447962,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-01-16",
+    "service": "CloudFront",
+    "cost": 44.52,
+    "score": 3.630052535239077,
+    "severity_score": 0.08068359795690148,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-21",
+    "service": "RDS",
+    "cost": 247.07,
+    "score": 3.198695582846088,
+    "severity_score": 0.07860899534739002,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-01",
+    "service": "EBS",
+    "cost": 36.53,
+    "score": 4.022296017146869,
+    "severity_score": 0.07311303059702698,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-19",
+    "service": "S3",
+    "cost": 95.55,
+    "score": 3.279161510799166,
+    "severity_score": 0.06665203387162216,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-03-24",
+    "service": "EBS",
+    "cost": 52.89,
+    "score": 3.198848625554816,
+    "severity_score": 0.06297985546171239,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-02-18",
+    "service": "S3",
+    "cost": 88.73,
+    "score": 3.0824675414853986,
+    "severity_score": 0.06148823551034495,
+    "severity": "LOW",
+    "detector": "stl"
+  },
+  {
+    "date": "2025-01-05",
+    "service": "S3",
+    "cost": 50.21,
+    "score": 3.364759070814681,
+    "severity_score": 0.058982539379824145,
+    "severity": "LOW",
+    "detector": "stl"
+  }
+]

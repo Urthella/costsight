@@ -1,0 +1,13 @@
+detector,anomaly_type,precision,recall,f1,tp,fp,fn
+zscore,gradual_drift,0.0,0.0,0.0,0,0,31
+zscore,level_shift,0.0,0.0,0.0,0,0,19
+zscore,point_spike,1.0,1.0,1.0,3,0,0
+zscore,OVERALL,1.0,0.0566,0.1071,3,0,50
+stl,gradual_drift,0.7931,0.7419,0.7667,23,6,8
+stl,level_shift,0.6842,0.6842,0.6842,13,6,6
+stl,point_spike,0.3333,1.0,0.5,3,6,0
+stl,OVERALL,0.8667,0.7358,0.7959,39,6,14
+iforest,gradual_drift,0.25,0.129,0.1702,4,12,27
+iforest,level_shift,0.25,0.2105,0.2286,4,12,15
+iforest,point_spike,0.2,1.0,0.3333,3,12,0
+iforest,OVERALL,0.4783,0.2075,0.2895,11,12,42
