@@ -10,14 +10,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 
-from .config import OUTPUTS_DIR
+from .config import OUTPUTS_DIR, RAW_DIR
 from .detectors import DETECTORS
 from .evaluation import compare_detectors
-from .preprocessing import aggregate_by_service
+from .preprocessing import aggregate_by, aggregate_by_service
 from .synthetic_data import generate
 
 
@@ -31,15 +32,31 @@ def run(
     n_seeds: int = 25,
     base_seed: int = 1000,
     n_days: int = 90,
+    group_keys: Sequence[str] = ("service",),
 ) -> BenchmarkResult:
-    """Repeat the full pipeline ``n_seeds`` times with different seeds."""
+    """Repeat the full pipeline ``n_seeds`` times with different seeds.
+
+    Pass ``group_keys=("service", "env")`` to benchmark the
+    multi-granularity setting against the env-aware ground truth.
+    """
+    keys = list(group_keys)
+    use_granular_labels = "env" in keys
     rows: list[pd.DataFrame] = []
     for i in range(n_seeds):
         seed = base_seed + i
-        cur, labels, _ = generate(n_days=n_days, seed=seed)
-        long = aggregate_by_service(cur)
-        detector_outputs = {name: fn(long) for name, fn in DETECTORS.items()}
-        comp = compare_detectors(detector_outputs, labels)
+        cur, labels_svc, _ = generate(n_days=n_days, seed=seed)
+        if use_granular_labels:
+            labels = pd.read_csv(
+                RAW_DIR / "ground_truth_labels_granular.csv", parse_dates=["date"]
+            )
+            long = aggregate_by(cur, keys)
+        else:
+            labels = labels_svc
+            long = aggregate_by_service(cur)
+        detector_outputs = {
+            name: fn(long, group_keys=keys) for name, fn in DETECTORS.items()
+        }
+        comp = compare_detectors(detector_outputs, labels, group_keys=keys)
         comp["seed"] = seed
         rows.append(comp)
 

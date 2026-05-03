@@ -20,9 +20,14 @@ from cloud_anomaly.alerts import build_alerts  # noqa: E402
 from cloud_anomaly.config import RAW_DIR  # noqa: E402
 from cloud_anomaly.detectors import DETECTORS  # noqa: E402
 from cloud_anomaly.evaluation import compare_detectors  # noqa: E402
-from cloud_anomaly.preprocessing import aggregate_by_service, aggregate_daily, load_cur  # noqa: E402
+from cloud_anomaly.preprocessing import aggregate_by, aggregate_by_service, aggregate_daily, load_cur  # noqa: E402
 from cloud_anomaly.synthetic_data import generate  # noqa: E402
 
+
+GRANULARITIES = {
+    "service": ("service",),
+    "service_env": ("service", "env"),
+}
 
 st.set_page_config(
     page_title="Cloud Cost Anomaly Detector",
@@ -32,20 +37,31 @@ st.set_page_config(
 
 
 @st.cache_data(show_spinner=False)
-def _load(regenerate: bool, n_days: int, seed: int):
+def _load(regenerate: bool, n_days: int, seed: int, granularity: str):
+    keys = list(GRANULARITIES[granularity])
     if regenerate or not (RAW_DIR / "cur_synthetic.parquet").exists():
-        cur_df, labels_df, _ = generate(n_days=n_days, seed=seed)
+        cur_df, labels_svc_df, _ = generate(n_days=n_days, seed=seed)
     else:
         cur_df = load_cur()
-        labels_df = pd.read_csv(RAW_DIR / "ground_truth_labels.csv", parse_dates=["date"])
-    long = aggregate_by_service(cur_df)
+        labels_svc_df = pd.read_csv(
+            RAW_DIR / "ground_truth_labels.csv", parse_dates=["date"]
+        )
+    if "env" in keys:
+        labels_df = pd.read_csv(
+            RAW_DIR / "ground_truth_labels_granular.csv", parse_dates=["date"]
+        )
+        long = aggregate_by(cur_df, keys)
+    else:
+        labels_df = labels_svc_df
+        long = aggregate_by_service(cur_df)
     daily = aggregate_daily(cur_df)
-    return cur_df, labels_df, long, daily
+    return cur_df, labels_df, long, daily, keys
 
 
 @st.cache_data(show_spinner=False)
-def _run_detectors(long: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    return {name: fn(long) for name, fn in DETECTORS.items()}
+def _run_detectors(long: pd.DataFrame, group_keys: tuple) -> dict[str, pd.DataFrame]:
+    keys = list(group_keys)
+    return {name: fn(long, group_keys=keys) for name, fn in DETECTORS.items()}
 
 
 def main() -> None:
@@ -58,6 +74,20 @@ def main() -> None:
         n_days = st.slider("Days of history", 30, 180, 90, step=15)
         seed = st.number_input("Random seed", min_value=0, value=42, step=1)
         st.markdown("---")
+        st.subheader("Granularity")
+        granularity = st.radio(
+            "Detection granularity",
+            options=list(GRANULARITIES),
+            format_func=lambda g: {
+                "service": "Per service (legacy)",
+                "service_env": "Per (service, env) — multi-granularity",
+            }[g],
+            help=(
+                "Multi-granularity fits one independent series per "
+                "(service, env) cell. Same detectors, same severity formula — "
+                "just finer slicing."
+            ),
+        )
         st.subheader("Detector")
         detector_name = st.selectbox(
             "Active detector",
@@ -74,17 +104,25 @@ def main() -> None:
             default=["MEDIUM", "HIGH"],
         )
 
-    cur_df, labels_df, long, daily = _load(regenerate, n_days, int(seed))
-    detectors = _run_detectors(long)
+    cur_df, labels_df, long, daily, group_keys = _load(
+        regenerate, n_days, int(seed), granularity
+    )
+    detectors = _run_detectors(long, tuple(group_keys))
     detections = detectors[detector_name]
-    alerts = build_alerts(detections, detector_name, dataset_days=long["date"].nunique())
+    alerts = build_alerts(
+        detections,
+        detector_name,
+        dataset_days=long["date"].nunique(),
+        group_keys=group_keys,
+    )
 
-    # Tag every (date, service) row with TP / FP / FN / TN against ground truth.
-    # Used by the cost-trend overlay and the alert-log "ground_truth" column.
-    truth = labels_df[["date", "service", "is_anomaly"]].rename(
+    # Tag every (date, *group_keys) row with TP/FP/FN/TN against ground
+    # truth. Used by the cost-trend overlay and the alert-log
+    # "ground_truth" column.
+    truth = labels_df[["date", *group_keys, "is_anomaly"]].rename(
         columns={"is_anomaly": "_truth"}
     )
-    tagged = detections.merge(truth, on=["date", "service"], how="left")
+    tagged = detections.merge(truth, on=["date", *group_keys], how="left")
     tagged["_truth"] = tagged["_truth"].fillna(False).astype(bool)
     tagged["outcome"] = "TN"
     tagged.loc[tagged["is_anomaly"] & tagged["_truth"], "outcome"] = "TP"
@@ -169,11 +207,11 @@ def main() -> None:
         if alerts.empty:
             st.info("No anomalies flagged with current settings.")
         else:
-            outcome_lookup = tagged.set_index(["date", "service"])["outcome"]
+            outcome_lookup = tagged.set_index(["date", *group_keys])["outcome"]
             enriched = alerts.copy()
+            lookup_keys = list(zip(*[enriched[k] for k in ["date", *group_keys]]))
             enriched["ground_truth"] = [
-                "TP" if outcome_lookup.get((d, s)) == "TP" else "FP"
-                for d, s in zip(enriched["date"], enriched["service"])
+                "TP" if outcome_lookup.get(k) == "TP" else "FP" for k in lookup_keys
             ]
             view = enriched[enriched["severity"].isin(severity_filter)].copy()
             view["date"] = view["date"].dt.strftime("%Y-%m-%d")
@@ -197,7 +235,8 @@ def main() -> None:
 
     with tab3:
         st.subheader("Precision / Recall by anomaly type")
-        comparison = compare_detectors(detectors, labels_df)
+        st.caption(f"Granularity: `{' × '.join(group_keys)}`")
+        comparison = compare_detectors(detectors, labels_df, group_keys=group_keys)
         st.dataframe(
             comparison.round(3),
             use_container_width=True,
