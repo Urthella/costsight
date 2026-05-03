@@ -18,6 +18,7 @@ import pandas as pd
 from .config import OUTPUTS_DIR, RAW_DIR
 from .detectors import DETECTORS
 from .evaluation import compare_detectors
+from .pipeline import detector_kwargs
 from .preprocessing import aggregate_by, aggregate_by_service
 from .synthetic_data import generate
 
@@ -53,8 +54,10 @@ def run(
         else:
             labels = labels_svc
             long = aggregate_by_service(cur)
+        n_groups = long.groupby(keys).ngroups
         detector_outputs = {
-            name: fn(long, group_keys=keys) for name, fn in DETECTORS.items()
+            name: fn(long, group_keys=keys, **detector_kwargs(name, keys, n_groups))
+            for name, fn in DETECTORS.items()
         }
         comp = compare_detectors(detector_outputs, labels, group_keys=keys)
         comp["seed"] = seed

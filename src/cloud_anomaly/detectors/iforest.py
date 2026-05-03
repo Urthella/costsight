@@ -86,7 +86,7 @@ def _features(sub: pd.DataFrame) -> pd.DataFrame:
 
 def detect(
     long_df: pd.DataFrame,
-    contamination: float = 0.08,
+    contamination: float | str = 0.08,
     random_state: int = 42,
     n_estimators: int = 400,
     score_threshold: float = 0.55,
@@ -95,7 +95,12 @@ def detect(
     """Args:
         long_df: columns ``date``, *``group_keys``, ``cost``.
         contamination: expected fraction of anomalous days per group.
-            Tuned to the synthetic dataset's injected anomaly rate.
+            Default 0.08 is calibrated to the service-level setup
+            (~7 series, ~5% true anomaly rate). When you split into
+            (service, env) you get ~21 series and the true rate per
+            group drops to ~2%; pass a smaller value (or ``'auto'`` to
+            let scikit-learn pick) to avoid forcing 8% of every benign
+            series to flag.
         n_estimators: forest size.
         score_threshold: secondary cutoff on the normalized [0, 1] score.
             A point must pass both ``predict()`` and exceed this to flag,

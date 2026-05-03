@@ -14,6 +14,30 @@ from .preprocessing import aggregate_by, aggregate_by_service, load_cur
 from .synthetic_data import generate
 
 
+def detector_kwargs(name: str, group_keys: Sequence[str], n_groups: int) -> dict:
+    """Per-detector hyperparameters that depend on the run's granularity.
+
+    The only knob that actually changes is IForest's ``contamination``:
+    its default 0.08 is calibrated to a service-level setup (~7 series,
+    ~5% true anomaly rate). Splitting into (service, env) drops the
+    per-group rate to ~2% and forcing 8% to flag inflates FPs. We scale
+    contamination to the group count so the dataset-wide expected flag
+    rate stays roughly constant.
+    """
+    if name == "iforest" and "env" in group_keys and n_groups > 0:
+        baseline_groups = 7
+        scaled = 0.08 * baseline_groups / n_groups
+        # Sharper score_threshold too: with more parallel series, the
+        # native sklearn predict() flags more borderline cases. Requiring
+        # a higher normalized score keeps only the points that stand out
+        # *relative to their own series*.
+        return {
+            "contamination": max(0.02, round(scaled, 3)),
+            "score_threshold": 0.7,
+        }
+    return {}
+
+
 def run(
     regenerate: bool = True,
     out_dir: Path | None = None,
@@ -48,9 +72,11 @@ def run(
 
     detector_outputs: dict[str, pd.DataFrame] = {}
     alerts_by_detector: dict[str, pd.DataFrame] = {}
+    n_groups = long.groupby(keys).ngroups
 
     for name, fn in DETECTORS.items():
-        detections = fn(long, group_keys=keys)
+        extra = detector_kwargs(name, keys, n_groups)
+        detections = fn(long, group_keys=keys, **extra)
         detector_outputs[name] = detections
         detections_csv = out_dir / f"detections_{name}.csv"
         detections.to_csv(detections_csv, index=False)
