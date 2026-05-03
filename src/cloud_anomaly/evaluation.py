@@ -2,10 +2,14 @@
 
 Provides both an overall report and a per-anomaly-type breakdown — the latter
 is the central research output of the project (Phase 2).
+
+All entry points accept ``group_keys`` so the same code scores both the
+legacy service-level setup and multi-granularity (service, env) runs.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Sequence
 
 import pandas as pd
 
@@ -37,15 +41,38 @@ def _metrics(tp: int, fp: int, fn: int) -> Metrics:
     return Metrics(precision=precision, recall=recall, f1=f1, tp=tp, fp=fp, fn=fn)
 
 
-def evaluate(detections: pd.DataFrame, labels: pd.DataFrame) -> Metrics:
-    """Evaluate a detector run against ground truth at (date, service) granularity."""
-    pred_df = detections[["date", "service", "is_anomaly"]].rename(
+def _resolve_keys(
+    detections: pd.DataFrame, labels: pd.DataFrame, group_keys: Sequence[str] | None
+) -> list[str]:
+    """Pick the join keys: caller-supplied if given, else the intersection
+    of (service, env) columns present in both frames, else just service.
+    """
+    if group_keys is not None:
+        return list(group_keys)
+    candidates = ["service", "env"]
+    return [k for k in candidates if k in detections.columns and k in labels.columns] or [
+        "service"
+    ]
+
+
+def evaluate(
+    detections: pd.DataFrame,
+    labels: pd.DataFrame,
+    group_keys: Sequence[str] | None = None,
+) -> Metrics:
+    """Evaluate a detector run at the granularity of ``group_keys``.
+
+    If ``group_keys`` is None the join keys are inferred from columns
+    common to both frames (``service`` always, ``env`` if both carry it).
+    """
+    keys = _resolve_keys(detections, labels, group_keys)
+    pred_df = detections[["date", *keys, "is_anomaly"]].rename(
         columns={"is_anomaly": "_pred"}
     )
-    truth_df = labels[["date", "service", "is_anomaly"]].rename(
+    truth_df = labels[["date", *keys, "is_anomaly"]].rename(
         columns={"is_anomaly": "_truth"}
     )
-    merged = pred_df.merge(truth_df, on=["date", "service"], how="left")
+    merged = pred_df.merge(truth_df, on=["date", *keys], how="left")
     merged["_truth"] = merged["_truth"].fillna(False).astype(bool)
     merged["_pred"] = merged["_pred"].astype(bool)
 
@@ -57,15 +84,20 @@ def evaluate(detections: pd.DataFrame, labels: pd.DataFrame) -> Metrics:
     return _metrics(tp, fp, fn)
 
 
-def evaluate_by_type(detections: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
+def evaluate_by_type(
+    detections: pd.DataFrame,
+    labels: pd.DataFrame,
+    group_keys: Sequence[str] | None = None,
+) -> pd.DataFrame:
     """Per-anomaly-type Precision/Recall — the headline result table."""
-    pred_df = detections[["date", "service", "is_anomaly"]].rename(
+    keys = _resolve_keys(detections, labels, group_keys)
+    pred_df = detections[["date", *keys, "is_anomaly"]].rename(
         columns={"is_anomaly": "_pred"}
     )
-    truth_df = labels[["date", "service", "is_anomaly", "anomaly_type"]].rename(
+    truth_df = labels[["date", *keys, "is_anomaly", "anomaly_type"]].rename(
         columns={"is_anomaly": "_truth"}
     )
-    merged = pred_df.merge(truth_df, on=["date", "service"], how="left")
+    merged = pred_df.merge(truth_df, on=["date", *keys], how="left")
     merged["_pred"] = merged["_pred"].astype(bool)
     merged["_truth"] = merged["_truth"].fillna(False).astype(bool)
     merged["anomaly_type"] = merged["anomaly_type"].fillna("")
@@ -80,27 +112,31 @@ def evaluate_by_type(detections: pd.DataFrame, labels: pd.DataFrame) -> pd.DataF
         m = _metrics(tp, fp, fn)
         rows.append({"anomaly_type": anomaly_type, **m.as_dict()})
 
-    overall = evaluate(detections, labels)
+    overall = evaluate(detections, labels, group_keys=keys)
     rows.append({"anomaly_type": "OVERALL", **overall.as_dict()})
     return pd.DataFrame(rows)
 
 
 def compare_detectors(
-    detector_outputs: dict[str, pd.DataFrame], labels: pd.DataFrame
+    detector_outputs: dict[str, pd.DataFrame],
+    labels: pd.DataFrame,
+    group_keys: Sequence[str] | None = None,
 ) -> pd.DataFrame:
     """Side-by-side per-anomaly-type comparison across detectors."""
     frames = []
     for name, det in detector_outputs.items():
-        sub = evaluate_by_type(det, labels)
+        sub = evaluate_by_type(det, labels, group_keys=group_keys)
         sub.insert(0, "detector", name)
         frames.append(sub)
     return pd.concat(frames, ignore_index=True)
 
 
 def evaluate_alerts(
-    alerts: pd.DataFrame, labels: pd.DataFrame
+    alerts: pd.DataFrame,
+    labels: pd.DataFrame,
+    group_keys: Sequence[str] | None = None,
 ) -> pd.DataFrame:
-    """Quality of the *alerted* (date, service) pairs, broken down by severity.
+    """Quality of the *alerted* rows, broken down by severity band.
 
     Helpful for the FinOps-facing claim that HIGH-severity alerts should be
     overwhelmingly true positives. Returns one row per severity band with
@@ -109,10 +145,11 @@ def evaluate_alerts(
     if alerts.empty:
         return pd.DataFrame(columns=["severity", "n_alerts", "true_positive", "precision"])
 
-    truth = labels[["date", "service", "is_anomaly"]].rename(
+    keys = _resolve_keys(alerts, labels, group_keys)
+    truth = labels[["date", *keys, "is_anomaly"]].rename(
         columns={"is_anomaly": "_truth"}
     )
-    merged = alerts.merge(truth, on=["date", "service"], how="left")
+    merged = alerts.merge(truth, on=["date", *keys], how="left")
     merged["_truth"] = merged["_truth"].fillna(False).astype(bool)
 
     rows = []

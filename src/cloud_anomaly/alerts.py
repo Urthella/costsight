@@ -6,7 +6,7 @@ Severity definition (matches the proposal slide):
     * deviation: detector score, normalized to [0, 1]
     * duration: number of consecutive anomaly days the point belongs to
                 (also normalized vs. dataset length)
-    * dollar_impact: cost on the day, normalized vs. service rolling mean
+    * dollar_impact: cost on the day, normalized vs. group rolling mean
 
 Final severity is mapped to LOW / MEDIUM / HIGH bands.
 """
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -43,41 +44,51 @@ def build_alerts(
     detections: pd.DataFrame,
     detector_name: str,
     dataset_days: int | None = None,
+    group_keys: Sequence[str] | None = None,
 ) -> pd.DataFrame:
     """Convert per-day detector flags into an alert log.
 
     Args:
-        detections: ``detect()`` output (date, service, cost, score, is_anomaly).
+        detections: ``detect()`` output (date, *group_keys, cost, score,
+            is_anomaly).
         detector_name: label written into the alert rows.
         dataset_days: total days in the source dataset (for duration norm).
+        group_keys: columns that identify an independent series. If None,
+            inferred from columns present in ``detections`` (always
+            ``service``, plus ``env`` if the detector emitted it).
     """
     df = detections.copy()
     if dataset_days is None:
         dataset_days = df["date"].nunique() or 1
+    if group_keys is None:
+        group_keys = ["service"] + (["env"] if "env" in df.columns else [])
+    keys = list(group_keys)
 
     # Normalize score to [0, 1] per detector run.
     score = df["score"].astype(float)
     s_min, s_max = score.min(), score.max()
     deviation = (score - s_min) / (s_max - s_min) if s_max > s_min else score * 0
 
-    # Duration: contiguous flagged-day run length per service.
+    # Duration: contiguous flagged-day run length per group.
     durations = []
-    for service, sub in df.groupby("service"):
-        durations.append(
-            pd.DataFrame(
-                {
-                    "date": sub["date"].values,
-                    "service": service,
-                    "_duration": _consecutive_lengths(sub["is_anomaly"]).values,
-                }
-            )
+    for group_vals, sub in df.groupby(keys, sort=False):
+        if not isinstance(group_vals, tuple):
+            group_vals = (group_vals,)
+        dur_frame = pd.DataFrame(
+            {
+                "date": sub["date"].values,
+                "_duration": _consecutive_lengths(sub["is_anomaly"]).values,
+            }
         )
+        for k, v in zip(keys, group_vals):
+            dur_frame[k] = v
+        durations.append(dur_frame)
     dur_df = pd.concat(durations, ignore_index=True)
-    df = df.merge(dur_df, on=["date", "service"], how="left")
+    df = df.merge(dur_df, on=["date", *keys], how="left")
 
-    # Dollar impact: cost on day / service mean (cap at 5x).
-    service_mean = df.groupby("service")["cost"].transform("mean").replace(0, np.nan)
-    dollar_norm = (df["cost"] / service_mean).clip(upper=5.0).fillna(1.0) / 5.0
+    # Dollar impact: cost on day / group mean (cap at 5x).
+    group_mean = df.groupby(keys)["cost"].transform("mean").replace(0, np.nan)
+    dollar_norm = (df["cost"] / group_mean).clip(upper=5.0).fillna(1.0) / 5.0
 
     duration_norm = (df["_duration"] / max(dataset_days, 1)).clip(upper=1.0)
 
@@ -90,7 +101,7 @@ def build_alerts(
 
     alerts = (
         df.loc[df["is_anomaly"], [
-            "date", "service", "cost", "score", "severity_score", "severity", "detector",
+            "date", *keys, "cost", "score", "severity_score", "severity", "detector",
         ]]
         .sort_values(["severity_score", "date"], ascending=[False, True])
         .reset_index(drop=True)
