@@ -58,6 +58,49 @@ def test_scenario_presets():
     assert all(a.anomaly_type == "gradual_drift" for a in drift_anoms)
 
 
+def test_playbook_and_pricing():
+    from cloud_anomaly.playbook import PLAYBOOKS, get
+    from cloud_anomaly.pricing import lookup, estimated_monthly
+
+    for atype in ["point_spike", "level_shift", "gradual_drift", "multi_detector_consensus"]:
+        book = get(atype)
+        assert book["headline"]
+        assert book["owner"]
+        assert book["sla"]
+
+    fallback = get("nonexistent_type")
+    assert "Unknown" in fallback["headline"]
+    assert PLAYBOOKS  # at least one entry
+
+    quotes = lookup("EC2", "us-east-1")
+    assert len(quotes) >= 2
+    assert all(q.unit_price > 0 for q in quotes)
+
+    monthly = estimated_monthly("EC2", "us-east-1", "t3.medium")
+    assert monthly > 0
+    assert monthly < 200  # t3.medium can't be more than ~$30/mo, sanity bound
+
+
+def test_notification_payload():
+    from cloud_anomaly.notification import build_payload_from_alert
+
+    row = {
+        "date": pd.Timestamp("2025-04-03"),
+        "service": "EC2",
+        "cost": 957.00,
+        "severity": "HIGH",
+        "summary": "EC2 spend spiked 4×",
+        "flagged_by": "stl, iforest",
+    }
+    payload = build_payload_from_alert(row, detector="stl")
+    assert payload.severity == "HIGH"
+    assert "EC2" in payload.title
+    block = payload.to_slack_block()
+    assert "blocks" in block
+    sns = payload.to_sns()
+    assert sns["Subject"].startswith("[HIGH]")
+
+
 def test_real_cur_loader():
     from cloud_anomaly.cur_loader import load_cur_csv
 

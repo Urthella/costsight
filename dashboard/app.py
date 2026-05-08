@@ -5,6 +5,7 @@ Run from the project root:
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -32,6 +33,16 @@ from cloud_anomaly.evaluation import (  # noqa: E402
 from cloud_anomaly.forecast import (  # noqa: E402
     forecast_per_service,
     projected_monthly_spend,
+)
+from cloud_anomaly.notification import (  # noqa: E402
+    build_payload_from_alert,
+    send_webhook,
+)
+from cloud_anomaly.playbook import PLAYBOOKS  # noqa: E402
+from cloud_anomaly.pricing import (  # noqa: E402
+    PRICING_SNAPSHOT_DATE,
+    estimated_monthly,
+    lookup,
 )
 from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
@@ -265,13 +276,12 @@ def main() -> None:
         ),
     )
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
-        [
-            "📈 Cost trend", "🚨 Alert log", "🔎 Root-cause",
-            "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
-            "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
-        ]
-    )
+    tabs = st.tabs([
+        "📈 Cost trend", "🚨 Alert log", "🔎 Root-cause",
+        "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
+        "💰 Budget", "📘 Playbook", "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
+    ])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab_budget, tab_playbook, tab7, tab8, tab9 = tabs
 
     # Severity-filtered detection sets per detector, used for chart markers.
     flagged_dates_per_detector: dict[str, set] = {}
@@ -395,6 +405,17 @@ def main() -> None:
                         f"run × dollar impact. Severity {sev_score:.3f} ≥ "
                         f"{ '0.66 → HIGH' if sev_score >= 0.66 else '0.33 → MEDIUM' if sev_score >= 0.33 else 'below 0.33 → LOW' }."
                     )
+                    if row.get("n_detectors", 0) >= 2:
+                        st.info(
+                            "🤝 **Multi-detector consensus** — see the *Playbook* tab "
+                            "for the consensus-class recipe (page on-call, 30-min ack)."
+                        )
+                    else:
+                        st.info(
+                            "📘 See the *Playbook* tab for the matching recipe — "
+                            "this looks like a **point spike**; the playbook lists the "
+                            "CloudTrail / autoscaler checks to run."
+                        )
 
     with tab3:
         st.subheader("Root-cause attribution")
@@ -781,6 +802,129 @@ def main() -> None:
                     proj.iloc[0]["service"],
                     f"${proj.iloc[0]['projected_monthly']:,.0f}/mo",
                 )
+
+    with tab_budget:
+        st.subheader("💰 What-if budget tracker")
+        st.caption(
+            "Set a monthly cap; the dashboard projects when (and which "
+            "service) will trip it given the current Holt-Winters forecast. "
+            "Real-pricing sanity column compares the forecast pace against "
+            f"the AWS Pricing snapshot from {PRICING_SNAPSHOT_DATE}."
+        )
+        budget = st.number_input(
+            "Monthly budget cap (USD)",
+            min_value=100.0, value=10000.0, step=500.0, format="%.0f",
+        )
+        with st.spinner("Forecasting…"):
+            fcast_b = forecast_per_service(long, horizon=14)
+        proj = projected_monthly_spend(fcast_b)
+        if proj.empty:
+            st.info("Not enough history to project monthly spend.")
+        else:
+            current_observed = (
+                cur_df.copy()
+                .assign(date=lambda d: pd.to_datetime(d["date"]))
+                .groupby("service", as_index=False)["cost"].sum()
+                .rename(columns={"cost": "actual_to_date"})
+            )
+            joined = proj.merge(current_observed, on="service", how="left")
+            joined["actual_to_date"] = joined["actual_to_date"].fillna(0.0)
+            joined["projected_total"] = joined["projected_monthly"]
+            joined["pct_of_budget"] = (joined["projected_total"] / budget * 100).round(1)
+            joined["over_budget"] = joined["projected_total"] > budget
+            joined["realistic_unit"] = joined["service"].apply(
+                lambda s: ", ".join(
+                    f"{q.sku} (${q.unit_price})" for q in lookup(s)[:1]
+                )
+            )
+
+            st.dataframe(
+                joined[[
+                    "service", "actual_to_date", "projected_monthly",
+                    "pct_of_budget", "over_budget", "realistic_unit",
+                ]].round(2),
+                use_container_width=True, hide_index=True,
+            )
+
+            total_proj = float(joined["projected_total"].sum())
+            burn_pct = total_proj / budget * 100 if budget else 0
+            kc1, kc2, kc3 = st.columns(3)
+            kc1.metric("Total projected monthly spend", f"${total_proj:,.0f}")
+            kc2.metric("% of budget", f"{burn_pct:.1f}%",
+                       delta=f"${total_proj - budget:+,.0f} vs cap")
+            kc3.metric("Services over budget", int(joined["over_budget"].sum()))
+
+            burn_chart = px.bar(
+                joined.sort_values("projected_total", ascending=False),
+                x="service", y="projected_total",
+                color="over_budget",
+                color_discrete_map={True: "#EF4444", False: "#10B981"},
+                title="Projected monthly spend by service",
+                height=380,
+            )
+            burn_chart.add_hline(
+                y=budget, line_dash="dash", line_color="#F59E0B",
+                annotation_text=f"Budget cap: ${budget:,.0f}",
+                annotation_position="top right",
+            )
+            st.plotly_chart(burn_chart, use_container_width=True)
+
+            with st.expander("Days-to-cap forecast (linear extrapolation)"):
+                days_elapsed = max(int(cur_df["date"].nunique()), 1)
+                burn_per_day = float(current_observed["actual_to_date"].sum()) / days_elapsed
+                if burn_per_day > 0:
+                    days_remaining = max(0.0, (budget - float(current_observed["actual_to_date"].sum())) / burn_per_day)
+                    st.write(
+                        f"At the current burn rate (**${burn_per_day:,.0f}/day**), "
+                        f"the remaining budget lasts **{days_remaining:.1f} days**."
+                    )
+                else:
+                    st.write("Burn rate too low to estimate runway.")
+
+    with tab_playbook:
+        st.subheader("📘 Anomaly playbook")
+        st.caption(
+            "When a detector fires, *what should the FinOps engineer do?* "
+            "Each playbook entry is a deterministic recipe keyed off the "
+            "anomaly type — owner, SLA, and a numbered checklist."
+        )
+        for atype, book in PLAYBOOKS.items():
+            with st.expander(f"**{atype}** — {book['headline']}", expanded=(atype == "point_spike")):
+                st.markdown(f"**Owner:** {book['owner']}")
+                st.markdown(f"**SLA:** {book['sla']}")
+                st.markdown("**Checks:**")
+                st.markdown(book["checks"])
+
+        st.markdown("---")
+        st.subheader("📨 Send a sample alert (webhook test)")
+        st.caption(
+            "Posts the highest-severity alert as a Slack-shaped JSON payload "
+            "to the URL you provide. Use a private webhook (or "
+            "https://webhook.site/) — the dashboard does NOT keep the URL."
+        )
+        if filtered_alerts.empty:
+            st.info("No alerts to send right now.")
+        else:
+            top = filtered_alerts.sort_values("severity_score", ascending=False).iloc[0]
+            payload = build_payload_from_alert(
+                top, detector=str(top.get("detector", "stl")),
+                runbook=PLAYBOOKS.get(
+                    "point_spike" if top.get("severity") == "HIGH" else "level_shift",
+                    PLAYBOOKS["point_spike"],
+                )["headline"],
+            )
+            st.code(json.dumps(payload.to_slack_block(), indent=2), language="json")
+            url = st.text_input("Webhook URL (optional — leave blank to dry-run)", value="")
+            if st.button("Send alert"):
+                if not url:
+                    st.warning("Dry-run: payload above is what would be sent.")
+                else:
+                    with st.spinner("POSTing…"):
+                        result = send_webhook(payload, url)
+                    if result["status"] == "ok":
+                        st.success(f"Sent · HTTP {result.get('code')}")
+                    else:
+                        st.error(f"Failed · {result}")
 
     with tab7:
         st.subheader("🔬 Threshold sensitivity playground")
