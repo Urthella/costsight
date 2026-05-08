@@ -217,7 +217,22 @@ def main() -> None:
         st.warning("Select at least one severity band in the sidebar.")
         return
 
-    cur_df, labels_df, long, daily = _load(regenerate, n_days, int(seed), scenario)
+    # If the user changed any of (scenario, n_days, seed), force a regenerate
+    # even when the "Regenerate synthetic data" checkbox is off — otherwise
+    # the dashboard silently keeps showing the cached parquet from the
+    # previous scenario.
+    new_signature = (int(n_days), int(seed), scenario)
+    last_signature = st.session_state.get("data_signature")
+    scenario_changed = last_signature is not None and last_signature != new_signature
+    st.session_state["data_signature"] = new_signature
+    effective_regenerate = regenerate or scenario_changed
+    if scenario_changed and not regenerate:
+        st.toast(
+            f"Scenario / horizon / seed changed → regenerating dataset for "
+            f"`{scenario}` ({n_days}d, seed={int(seed)}).",
+            icon="🔄",
+        )
+    cur_df, labels_df, long, daily = _load(effective_regenerate, n_days, int(seed), scenario)
     detectors_all = _run_detectors(long)
     detections_by_name = {k: detectors_all[k] for k in active_detectors}
 
