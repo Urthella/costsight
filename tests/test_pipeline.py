@@ -119,6 +119,28 @@ def test_real_cur_loader():
     assert apr3_ec2 > 900
 
 
+def test_clustering_and_perf():
+    from cloud_anomaly.clustering import cluster_alerts, summarize_incidents
+    from cloud_anomaly.perf import time_detector
+
+    cur, _, _ = generate(n_days=60, seed=11)
+    long = aggregate_by_service(cur)
+    detections = DETECTORS["stl"](long)
+    alerts_stl = build_alerts(detections, detector_name="stl", dataset_days=60)
+    clustered = cluster_alerts(alerts_stl, eps=0.85, min_samples=2)
+    assert {"incident_id", "incident_size"} <= set(clustered.columns)
+
+    incidents = summarize_incidents(clustered)
+    if not incidents.empty:
+        assert {"incident_id", "n_alerts", "summary"} <= set(incidents.columns)
+        assert (incidents["n_alerts"] >= 2).all()
+
+    perf = time_detector("zscore", long, repeat=2)
+    assert perf.detector == "zscore"
+    assert perf.seconds_per_run >= 0
+    assert perf.rows_processed == len(long)
+
+
 def test_each_detector_runs():
     cur, _, _ = generate(n_days=60, seed=7)
     long = aggregate_by_service(cur)

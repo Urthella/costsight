@@ -44,6 +44,8 @@ from cloud_anomaly.pricing import (  # noqa: E402
     estimated_monthly,
     lookup,
 )
+from cloud_anomaly.clustering import cluster_alerts, summarize_incidents  # noqa: E402
+from cloud_anomaly.perf import benchmark_grid  # noqa: E402
 from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.iforest import detect as iforest_detect_raw  # noqa: E402
@@ -279,9 +281,14 @@ def main() -> None:
     tabs = st.tabs([
         "📈 Cost trend", "🚨 Alert log", "🔎 Root-cause",
         "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
-        "💰 Budget", "📘 Playbook", "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
+        "💰 Budget", "📘 Playbook", "🧩 Incidents", "⚡ Perf",
+        "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
     ])
-    tab1, tab2, tab3, tab4, tab5, tab6, tab_budget, tab_playbook, tab7, tab8, tab9 = tabs
+    (
+        tab1, tab2, tab3, tab4, tab5, tab6,
+        tab_budget, tab_playbook, tab_incidents, tab_perf,
+        tab7, tab8, tab9,
+    ) = tabs
 
     # Severity-filtered detection sets per detector, used for chart markers.
     flagged_dates_per_detector: dict[str, set] = {}
@@ -925,6 +932,79 @@ def main() -> None:
                         st.success(f"Sent · HTTP {result.get('code')}")
                     else:
                         st.error(f"Failed · {result}")
+
+    with tab_incidents:
+        st.subheader("🧩 Alert clustering — turn rows into incidents")
+        st.caption(
+            "DBSCAN over (day, service, severity, detector) groups close-in-time "
+            "alerts into incidents. The default DBSCAN density radius (eps) is "
+            "tuned for 90-day datasets with ~3-5 anomaly windows; tweak it if "
+            "you change the synthetic scenario."
+        )
+        if filtered_alerts.empty:
+            st.info("No alerts to cluster.")
+        else:
+            ec1, ec2 = st.columns(2)
+            eps = ec1.slider("DBSCAN eps", 0.3, 2.0, 0.85, 0.05, key="dbs_eps")
+            min_samples = ec2.slider("Min samples", 2, 5, 2, 1, key="dbs_min")
+
+            clustered = cluster_alerts(filtered_alerts, eps=eps, min_samples=min_samples)
+            incidents = summarize_incidents(clustered)
+            n_incidents = int(incidents["incident_id"].nunique()) if not incidents.empty else 0
+            n_singletons = int((clustered["incident_id"] == -1).sum())
+            ic1, ic2, ic3 = st.columns(3)
+            ic1.metric("Alerts", len(clustered))
+            ic2.metric("Incidents", n_incidents)
+            ic3.metric("Singletons (un-clustered)", n_singletons)
+
+            if incidents.empty:
+                st.info("No multi-alert incidents at this eps. Try raising eps.")
+            else:
+                view = incidents.copy()
+                view["first_date"] = view["first_date"].dt.strftime("%Y-%m-%d")
+                view["last_date"] = view["last_date"].dt.strftime("%Y-%m-%d")
+                st.dataframe(view, use_container_width=True, hide_index=True)
+
+                inc_chart = px.scatter(
+                    clustered.assign(date=lambda d: pd.to_datetime(d["date"])),
+                    x="date", y="service", color="incident_id",
+                    size="severity_score", hover_data=["severity", "cost"],
+                    height=380,
+                    title="Alerts colored by incident_id (-1 = singleton)",
+                )
+                st.plotly_chart(inc_chart, use_container_width=True)
+
+    with tab_perf:
+        st.subheader("⚡ Detector performance — measured runtime")
+        st.caption(
+            "Median of 3 runs per (detector, dataset_size) combination. Used "
+            "for production-deploy sizing — see REPORT § 4.1 *Cloud architecture* "
+            "for how this maps to ECS Fargate vCPU choices."
+        )
+        if st.button("Run performance grid (4 sizes × 4 detectors)"):
+            with st.spinner("Timing detectors…"):
+                perf_df = benchmark_grid()
+            st.session_state["perf_df"] = perf_df
+
+        perf_df = st.session_state.get("perf_df")
+        if perf_df is None:
+            st.info("Click *Run performance grid* to populate this tab.")
+        else:
+            st.dataframe(perf_df, use_container_width=True, hide_index=True)
+            chart = px.line(
+                perf_df, x="n_days", y="seconds_per_run",
+                color="detector", markers=True, height=380,
+                title="Seconds per detector run vs dataset size",
+                labels={"n_days": "Dataset size (days)", "seconds_per_run": "Seconds"},
+            )
+            st.plotly_chart(chart, use_container_width=True)
+
+            throughput = px.bar(
+                perf_df, x="n_days", y="rows_per_second", color="detector",
+                barmode="group", height=320,
+                title="Throughput (rows/sec) by detector and dataset size",
+            )
+            st.plotly_chart(throughput, use_container_width=True)
 
     with tab7:
         st.subheader("🔬 Threshold sensitivity playground")
