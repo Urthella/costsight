@@ -347,6 +347,45 @@ enterprise scale alike.
   above are designed-for, not built. They are the natural Phase-2
   /production extension.
 
+## 4.2 Multi-cloud schema mapping
+
+The internal long-format used by every detector is intentionally narrow:
+
+```
+date, service, region, usage_type, cost, tag_team, tag_environment
+```
+
+Every major hyperscaler exports a billing dataset that maps cleanly to
+this schema. The table below is the cross-walk; once an account is
+pointed at the right export, **the same detector / alert / attribution
+code path runs unchanged on AWS, GCP, and Azure data**.
+
+| Internal column   | AWS CUR (S3 export)                  | GCP Billing Export (BigQuery)       | Azure Cost Management (CSV / Storage) |
+|-------------------|--------------------------------------|-------------------------------------|---------------------------------------|
+| `date`            | `lineItem/UsageStartDate`            | `usage_start_time`                  | `Date` / `UsageDateTime`              |
+| `service`         | `lineItem/ProductCode`               | `service.description`               | `MeterCategory` / `ServiceName`       |
+| `region`          | `product/region`                     | `location.region`                   | `ResourceLocation` / `MeterRegion`    |
+| `usage_type`      | `lineItem/UsageType`                 | `usage.unit` + `sku.description`    | `MeterSubcategory`                    |
+| `cost`            | `lineItem/UnblendedCost`             | `cost`                              | `Cost` / `CostInBillingCurrency`      |
+| `tag_team`        | `resourceTags/user:Team`             | `labels.team`                       | `Tags["Team"]`                        |
+| `tag_environment` | `resourceTags/user:Environment`      | `labels.environment`                | `Tags["Environment"]`                 |
+
+Real-CUR ingestion is implemented today in
+[`src/cloud_anomaly/cur_loader.py`](src/cloud_anomaly/cur_loader.py).
+A redacted public-shape sample is committed at
+[`examples/aws_cur_sample.csv`](examples/aws_cur_sample.csv) so the
+loader can be exercised end-to-end without an AWS account:
+
+```python
+from cloud_anomaly.cur_loader import load_cur_csv
+long_df = load_cur_csv("examples/aws_cur_sample.csv")  # → internal long format
+```
+
+GCP and Azure adapters are deliberately left as stubs in the loader
+module; adding them is a strict extension (one new ``load_*`` function
+per provider, same return signature) and would not require any change
+to the detection / alert / attribution / forecasting pipeline.
+
 ---
 
 ## 5. Limitations

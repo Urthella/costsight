@@ -29,10 +29,51 @@ from cloud_anomaly.synthetic_data import generate
 
 def test_synthetic_dataset_shape():
     cur, labels, anomalies = generate(n_days=60, seed=7)
-    assert {"date", "service", "region", "usage_type", "cost"} <= set(cur.columns)
+    assert {
+        "date", "service", "region", "usage_type", "cost",
+        "tag_team", "tag_environment",
+    } <= set(cur.columns)
     assert (cur["cost"] > 0).all()
     assert labels["is_anomaly"].sum() > 0
     assert len(anomalies) >= 4
+    assert (cur["tag_team"] != "").all()
+    assert (cur["tag_environment"] != "").all()
+
+
+def test_scenario_presets():
+    from cloud_anomaly.synthetic_data import SCENARIOS
+
+    assert {"default", "drift_heavy", "spike_storm", "stealth_leak",
+            "multi_region", "weekend_camouflage", "calm"} <= set(SCENARIOS.keys())
+
+    # calm scenario should produce zero anomalies
+    cur, labels, anomalies = generate(n_days=60, seed=11, scenario="calm")
+    assert len(anomalies) == 0
+    assert int(labels["is_anomaly"].sum()) == 0
+    assert (cur["cost"] > 0).all()
+
+    # drift_heavy should have only gradual_drift entries
+    _, _, drift_anoms = generate(n_days=90, seed=13, scenario="drift_heavy")
+    assert len(drift_anoms) >= 2
+    assert all(a.anomaly_type == "gradual_drift" for a in drift_anoms)
+
+
+def test_real_cur_loader():
+    from cloud_anomaly.cur_loader import load_cur_csv
+
+    sample = ROOT / "examples" / "aws_cur_sample.csv"
+    long = load_cur_csv(sample)
+    assert {
+        "date", "service", "region", "usage_type", "cost",
+        "tag_team", "tag_environment",
+    } <= set(long.columns)
+    assert long["service"].str.contains("EC2").any()
+    assert (long["cost"] >= 0).all()
+    # The huge spike on 2025-04-03 EC2 should be captured.
+    apr3_ec2 = long[
+        (long["service"] == "EC2") & (long["date"] == pd.Timestamp("2025-04-03"))
+    ]["cost"].sum()
+    assert apr3_ec2 > 900
 
 
 def test_each_detector_runs():

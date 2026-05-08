@@ -37,7 +37,7 @@ from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: 
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.iforest import detect as iforest_detect_raw  # noqa: E402
 from cloud_anomaly.preprocessing import aggregate_by_service, aggregate_daily, load_cur  # noqa: E402
-from cloud_anomaly.synthetic_data import generate  # noqa: E402
+from cloud_anomaly.synthetic_data import SCENARIOS, generate  # noqa: E402
 from cloud_anomaly.theoretical_scores import (  # noqa: E402
     INTERPRETABILITY_QUALITATIVE,
     RADAR_AXES,
@@ -67,9 +67,9 @@ DETECTOR_STYLES = {
 
 
 @st.cache_data(show_spinner=False)
-def _load(regenerate: bool, n_days: int, seed: int):
+def _load(regenerate: bool, n_days: int, seed: int, scenario: str = "default"):
     if regenerate or not (RAW_DIR / "cur_synthetic.parquet").exists():
-        cur_df, labels_df, _ = generate(n_days=n_days, seed=seed)
+        cur_df, labels_df, _ = generate(n_days=n_days, seed=seed, scenario=scenario)
     else:
         cur_df = load_cur()
         labels_df = pd.read_csv(RAW_DIR / "ground_truth_labels.csv", parse_dates=["date"])
@@ -175,6 +175,12 @@ def main() -> None:
     with st.sidebar:
         st.header("⚙️ Configuration")
         regenerate = st.checkbox("Regenerate synthetic data", value=False)
+        scenario = st.selectbox(
+            "Scenario preset",
+            options=list(SCENARIOS.keys()),
+            format_func=lambda s: f"{s} — {SCENARIOS[s]}"[:60] + ("…" if len(SCENARIOS[s]) > 32 else ""),
+            help="Each preset biases the anomaly mix injected into the synthetic data.",
+        )
         n_days = st.slider("Days of history", 30, 180, 90, step=15)
         seed = st.number_input("Random seed", min_value=0, value=42, step=1)
         st.markdown("---")
@@ -198,7 +204,7 @@ def main() -> None:
         st.warning("Select at least one severity band in the sidebar.")
         return
 
-    cur_df, labels_df, long, daily = _load(regenerate, n_days, int(seed))
+    cur_df, labels_df, long, daily = _load(regenerate, n_days, int(seed), scenario)
     detectors_all = _run_detectors(long)
     detections_by_name = {k: detectors_all[k] for k in active_detectors}
 

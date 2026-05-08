@@ -19,7 +19,7 @@ from __future__ import annotations
 import pandas as pd
 
 
-_ATTRIBUTION_DIMS = ["region", "usage_type"]
+_ATTRIBUTION_DIMS = ["region", "usage_type", "tag_team", "tag_environment"]
 
 
 def attribute(

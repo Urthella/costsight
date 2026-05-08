@@ -19,6 +19,20 @@ SERVICES = [
     ("EBS",        "eu-west-1", "Storage",     45.0, 0.08),
 ]
 
+# (service) → (tag_team, tag_environment).
+# Mirrors a typical org where backend services live in prod and analytics
+# services live in staging — gives the attribution layer something to
+# pivot on beyond region / usage_type.
+SERVICE_TAGS: dict[str, tuple[str, str]] = {
+    "EC2":        ("backend",   "prod"),
+    "S3":         ("data",      "prod"),
+    "RDS":        ("backend",   "prod"),
+    "Lambda":     ("platform",  "staging"),
+    "CloudFront": ("frontend",  "prod"),
+    "DynamoDB":   ("backend",   "staging"),
+    "EBS":        ("platform",  "prod"),
+}
+
 DEFAULT_DAYS = 90
 DEFAULT_SEED = 42
 

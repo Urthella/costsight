@@ -18,7 +18,20 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .config import DEFAULT_DAYS, DEFAULT_SEED, RAW_DIR, SERVICES
+from .config import DEFAULT_DAYS, DEFAULT_SEED, RAW_DIR, SERVICE_TAGS, SERVICES
+
+# Scenario presets — each one biases the anomaly mix the dashboard
+# regenerate-button creates, so reviewers can see "what happens when the
+# month is mostly drift" / "what happens during a multi-region outage".
+SCENARIOS = {
+    "default":           "Standard mix — 1 spike + 1 level shift + 1 drift.",
+    "drift_heavy":       "Three concurrent gradual drifts on the data tier.",
+    "spike_storm":       "Six point spikes scattered across services.",
+    "stealth_leak":      "Slow multi-service leak that masquerades as growth.",
+    "multi_region":      "Region outage — costs shift from one region to another.",
+    "weekend_camouflage": "Spike timed on weekends to dodge weekly seasonality.",
+    "calm":              "No anomalies — pure baseline (negative control).",
+}
 
 
 @dataclass(frozen=True)
@@ -40,6 +53,7 @@ def _build_baseline(rng: np.random.Generator, n_days: int) -> pd.DataFrame:
     dates = pd.date_range("2025-01-01", periods=n_days, freq="D")
     rows = []
     for service, region, usage_type, base_cost, noise_pct in SERVICES:
+        team, env = SERVICE_TAGS.get(service, ("unknown", "unknown"))
         # Weekly seasonality: weekdays slightly heavier than weekends.
         dow = np.array([d.weekday() for d in dates])
         weekly = 1.0 + 0.12 * np.where(dow < 5, 1.0, -0.6)
@@ -55,10 +69,96 @@ def _build_baseline(rng: np.random.Generator, n_days: int) -> pd.DataFrame:
                     "region": region,
                     "usage_type": usage_type,
                     "cost": cost,
+                    "tag_team": team,
+                    "tag_environment": env,
                 }
             )
         )
     return pd.concat(rows, ignore_index=True)
+
+
+def _scenario_anomalies(
+    scenario: str, n_days: int, rng: np.random.Generator
+) -> list[InjectedAnomaly]:
+    """Pick an anomaly set tuned for the requested scenario."""
+    services = [s[0] for s in SERVICES]
+    last = n_days - 1
+    anomalies: list[InjectedAnomaly] = []
+
+    if scenario == "drift_heavy":
+        windows = [(int(n_days * 0.10), int(n_days * 0.55)),
+                   (int(n_days * 0.30), int(n_days * 0.85)),
+                   (int(n_days * 0.45), last)]
+        for svc, (start, end) in zip(["S3", "DynamoDB", "EBS"], windows):
+            anomalies.append(InjectedAnomaly(svc, "gradual_drift", start, min(end, last), 2.2))
+        return anomalies
+
+    if scenario == "spike_storm":
+        spike_services = ["EC2", "Lambda", "RDS", "DynamoDB", "S3", "CloudFront"]
+        positions = sorted(rng.integers(low=5, high=max(6, last - 1), size=len(spike_services)).tolist())
+        for svc, day in zip(spike_services, positions):
+            mult = float(rng.uniform(3.5, 6.0))
+            anomalies.append(InjectedAnomaly(svc, "point_spike", int(day), int(day), mult))
+        return anomalies
+
+    if scenario == "stealth_leak":
+        # Several services creep up at the same time; each one looks small,
+        # the *aggregate* is the anomaly.
+        leak_services = ["EC2", "S3", "RDS", "DynamoDB"]
+        start = int(n_days * 0.35)
+        for svc in leak_services:
+            anomalies.append(InjectedAnomaly(svc, "gradual_drift", start, last, 1.55))
+        # Add a single point spike late so detectors still have something
+        # explicitly visible at the end.
+        anomalies.append(InjectedAnomaly("Lambda", "point_spike", min(last, n_days - 3), min(last, n_days - 3), 4.0))
+        return anomalies
+
+    if scenario == "multi_region":
+        # A region "fails" and traffic shifts. Encoded as a level shift on
+        # the source service in eu-west-1 (RDS / EBS) and a matching ramp
+        # on the destination (EC2 / S3 in us-east-1).
+        start = int(n_days * 0.50)
+        end = min(last, start + 14)
+        anomalies.append(InjectedAnomaly("RDS", "level_shift", start, end, 0.4))
+        anomalies.append(InjectedAnomaly("EC2", "level_shift", start, end, 1.6))
+        anomalies.append(InjectedAnomaly("EBS", "gradual_drift", start, end, 0.5))
+        anomalies.append(InjectedAnomaly("S3", "gradual_drift", start, end, 1.7))
+        return anomalies
+
+    if scenario == "weekend_camouflage":
+        # Pick weekend days only. Detectors with weekly seasonality (STL)
+        # should still catch them; Z-Score might not.
+        dates = pd.date_range("2025-01-01", periods=n_days, freq="D")
+        weekend_days = [i for i, d in enumerate(dates) if d.weekday() >= 5]
+        chosen = rng.choice(weekend_days, size=min(3, len(weekend_days)), replace=False).tolist()
+        spike_services = ["Lambda", "DynamoDB", "S3"]
+        for svc, day in zip(spike_services, sorted(chosen)):
+            anomalies.append(InjectedAnomaly(svc, "point_spike", int(day), int(day), 4.5))
+        return anomalies
+
+    if scenario == "calm":
+        return []
+
+    # default — keep the original behavior to preserve benchmark numbers.
+    spike_ec2 = max(0, last - 12)
+    spike_lambda = min(last, max(5, n_days // 4))
+    level_start = min(last, max(7, int(n_days * 0.4)))
+    level_end = min(last, level_start + max(7, n_days // 5))
+    drift_start = min(last, max(level_end + 5, int(n_days * 0.65)))
+
+    anomalies.append(InjectedAnomaly("EC2", "point_spike", spike_ec2, spike_ec2, 4.5))
+    anomalies.append(InjectedAnomaly("Lambda", "point_spike", spike_lambda, spike_lambda, 6.0))
+    anomalies.append(InjectedAnomaly("RDS", "level_shift", level_start, level_end, 1.7))
+    if drift_start < last:
+        anomalies.append(InjectedAnomaly("S3", "gradual_drift", drift_start, last, 2.0))
+    extras = [s for s in services if s not in {"EC2", "S3", "RDS", "Lambda"}]
+    if extras and n_days > 15:
+        extra_service = rng.choice(extras)
+        extra_day = int(rng.integers(low=5, high=max(6, n_days - 5)))
+        anomalies.append(
+            InjectedAnomaly(str(extra_service), "point_spike", extra_day, extra_day, 3.5)
+        )
+    return anomalies
 
 
 def _default_anomalies(n_days: int, rng: np.random.Generator) -> list[InjectedAnomaly]:
@@ -140,14 +240,22 @@ def generate(
     n_days: int = DEFAULT_DAYS,
     seed: int = DEFAULT_SEED,
     out_dir: Path | None = None,
+    scenario: str = "default",
 ) -> tuple[pd.DataFrame, pd.DataFrame, list[InjectedAnomaly]]:
     """Generate a synthetic CUR dataset and write CSV + Parquet to ``out_dir``.
 
+    The ``scenario`` argument biases the anomaly mix — see
+    :data:`SCENARIOS` for the available presets. The default scenario
+    preserves the original behavior so the existing 25-seed benchmark
+    numbers remain reproducible.
+
     Returns ``(cur_df, labels_df, anomalies)``.
     """
+    if scenario not in SCENARIOS:
+        raise ValueError(f"unknown scenario {scenario!r}; choose from {list(SCENARIOS)}")
     rng = np.random.default_rng(seed)
     baseline = _build_baseline(rng, n_days)
-    anomalies = _default_anomalies(n_days, rng)
+    anomalies = _scenario_anomalies(scenario, n_days, rng)
     cur_df, labels_df = _apply_anomalies(baseline, anomalies, n_days)
 
     cur_df = cur_df.sort_values(["date", "service"]).reset_index(drop=True)
