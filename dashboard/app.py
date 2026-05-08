@@ -21,11 +21,17 @@ from cloud_anomaly.attribution import attribute  # noqa: E402
 from cloud_anomaly.config import RAW_DIR  # noqa: E402
 from cloud_anomaly.detectors import DETECTORS  # noqa: E402
 from cloud_anomaly.evaluation import (  # noqa: E402
+    bootstrap_f1_ci,
     compare_detectors,
     cost_saved_estimate,
     evaluate_alerts,
     evaluate_by_type,
+    paired_significance,
     time_to_detect,
+)
+from cloud_anomaly.forecast import (  # noqa: E402
+    forecast_per_service,
+    projected_monthly_spend,
 )
 from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
@@ -253,10 +259,11 @@ def main() -> None:
         ),
     )
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
         [
             "📈 Cost trend", "🚨 Alert log", "🔎 Root-cause",
-            "📊 Detector comparison", "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
+            "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
+            "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
         ]
     )
 
@@ -540,6 +547,52 @@ def main() -> None:
             st.info("No TTD data — check that ground-truth labels are loaded.")
 
         st.markdown("---")
+        st.subheader("Statistical rigor — bootstrap CIs and pairwise significance")
+        st.caption(
+            "Loaded from `outputs/benchmark_raw.csv` (the per-seed table from "
+            "`scripts/run_benchmark.py`). Bootstrap = 2000 resamples, 95% CI. "
+            "Pairwise test = Wilcoxon signed-rank on per-seed F1, two-sided."
+        )
+        bench_raw_path = ROOT / "outputs" / "benchmark_raw.csv"
+        if not bench_raw_path.exists():
+            st.info(
+                "No `outputs/benchmark_raw.csv` yet — run `python scripts/run_benchmark.py` "
+                "to populate the per-seed table."
+            )
+        else:
+            raw_runs = pd.read_csv(bench_raw_path)
+            ci_rows = []
+            for det in ["zscore", "stl", "iforest"]:
+                for atype in ["point_spike", "level_shift", "gradual_drift", "OVERALL"]:
+                    ci = bootstrap_f1_ci(raw_runs, det, atype)
+                    ci_rows.append({
+                        "detector": det, "anomaly_type": atype,
+                        "F1 mean": round(ci["mean"], 3),
+                        "95% CI lo": round(ci["lo"], 3),
+                        "95% CI hi": round(ci["hi"], 3),
+                        "n seeds": ci["n"],
+                    })
+            ci_df = pd.DataFrame(ci_rows)
+            st.dataframe(ci_df, use_container_width=True, hide_index=True)
+
+            st.markdown("**Pairwise Wilcoxon (OVERALL F1) — is the difference significant?**")
+            sig_rows = []
+            pairs = [("stl", "iforest"), ("stl", "zscore"), ("iforest", "zscore")]
+            for a, b in pairs:
+                res = paired_significance(raw_runs, a, b, anomaly_type="OVERALL")
+                sig_rows.append({
+                    "pair": f"{DETECTOR_LABELS[a].split(' ')[0]} vs {DETECTOR_LABELS[b].split(' ')[0]}",
+                    "median F1 delta": round(res.get("median_delta", float("nan")), 4),
+                    "Wilcoxon W": round(res["statistic"], 2) if not pd.isna(res["statistic"]) else "—",
+                    "p-value": f"{res['p_value']:.2e}" if not pd.isna(res["p_value"]) else "—",
+                    "n": res["n"],
+                    "verdict": "significant (p<0.05)" if (
+                        not pd.isna(res["p_value"]) and res["p_value"] < 0.05
+                    ) else "not significant",
+                })
+            st.dataframe(pd.DataFrame(sig_rows), use_container_width=True, hide_index=True)
+
+        st.markdown("---")
         st.subheader("ROC — true-positive vs false-positive at every score threshold")
         st.caption(
             "We sweep each detector's score from low to high and plot the resulting "
@@ -582,6 +635,148 @@ def main() -> None:
         st.plotly_chart(roc_fig, use_container_width=True)
 
     with tab5:
+        st.subheader("📅 Cost calendar heatmap")
+        st.caption(
+            "One cell per (service, day). Color intensity = daily cost. The white "
+            "dots are days flagged by the active detectors (severity-filtered). "
+            "Drift, level shifts, and weekend seasonality jump out at a glance."
+        )
+        calendar_view = long.copy()
+        calendar_view["date"] = pd.to_datetime(calendar_view["date"])
+        pivot = calendar_view.pivot_table(
+            index="service", columns="date", values="cost", aggfunc="sum",
+        ).fillna(0.0)
+        pivot.columns = [pd.Timestamp(c).strftime("%Y-%m-%d") for c in pivot.columns]
+        heat = go.Figure(data=go.Heatmap(
+            z=pivot.values,
+            x=pivot.columns,
+            y=pivot.index,
+            colorscale="YlOrRd",
+            colorbar=dict(title="$"),
+            hovertemplate="Service: %{y}<br>Date: %{x}<br>Cost: $%{z:.2f}<extra></extra>",
+        ))
+        # Overlay detector flags as small white markers at the right (date, service) cell.
+        for name in active_detectors:
+            flagged = flagged_dates_per_detector[name]
+            if not flagged:
+                continue
+            xs, ys = [], []
+            for d, s in flagged:
+                xs.append(pd.Timestamp(d).strftime("%Y-%m-%d"))
+                ys.append(s)
+            style = DETECTOR_STYLES[name]
+            heat.add_trace(go.Scatter(
+                x=xs, y=ys, mode="markers", name=DETECTOR_LABELS[name],
+                marker=dict(
+                    color=style["color"], size=8, symbol=style["symbol"],
+                    line=dict(width=1, color="white"),
+                ),
+            ))
+        # Ground-truth overlay as small green diamond markers.
+        if not labels_df.empty:
+            gt = labels_df[labels_df["is_anomaly"]]
+            heat.add_trace(go.Scatter(
+                x=pd.to_datetime(gt["date"]).dt.strftime("%Y-%m-%d"),
+                y=gt["service"],
+                mode="markers", name="Ground truth",
+                marker=dict(color="#10B981", size=6, symbol="diamond-open",
+                            line=dict(width=2, color="#10B981")),
+            ))
+        heat.update_layout(
+            height=440, xaxis_title="Date", yaxis_title="Service",
+            legend=dict(orientation="h", y=-0.25),
+            margin=dict(l=80, r=20, t=20, b=80),
+        )
+        st.plotly_chart(heat, use_container_width=True)
+
+        st.markdown("**Daily total — calendar layout (week × weekday)**")
+        daily_view = daily.copy()
+        daily_view["date"] = pd.to_datetime(daily_view["date"])
+        daily_view["weekday"] = daily_view["date"].dt.day_name().str[:3]
+        daily_view["week"] = daily_view["date"].dt.isocalendar().week.astype(int)
+        weekday_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        cal_pivot = daily_view.pivot_table(
+            index="week", columns="weekday", values="cost", aggfunc="sum",
+        ).reindex(columns=weekday_order)
+        cal = go.Figure(data=go.Heatmap(
+            z=cal_pivot.values,
+            x=cal_pivot.columns,
+            y=[f"W{int(w)}" for w in cal_pivot.index],
+            colorscale="Blues",
+            colorbar=dict(title="$/day"),
+            hovertemplate="Week: %{y}<br>Day: %{x}<br>Cost: $%{z:.0f}<extra></extra>",
+        ))
+        cal.update_layout(height=380, xaxis_title="Day of week", yaxis_title="ISO week")
+        st.plotly_chart(cal, use_container_width=True)
+
+    with tab6:
+        st.subheader("📉 Holt-Winters forecast (next 14 days)")
+        st.caption(
+            "Per-service additive Holt-Winters with weekly seasonality. The shaded "
+            "band is a 90% prediction interval from 200 simulated futures. The "
+            "projected monthly bill assumes the forecast pace continues for 30 days."
+        )
+        with st.spinner("Fitting per-service forecasts…"):
+            fcast = forecast_per_service(long, horizon=14)
+        if fcast.empty:
+            st.info("Not enough history for a forecast yet.")
+        else:
+            services = sorted(fcast["service"].unique())
+            chosen = st.multiselect(
+                "Services to plot",
+                options=services,
+                default=services[: min(3, len(services))],
+                key="fcast_svc",
+            )
+            fcast_fig = go.Figure()
+            palette = px.colors.qualitative.Set2
+            for i, svc in enumerate(chosen):
+                hist = fcast[(fcast["service"] == svc) & (fcast["kind"] == "history")]
+                future = fcast[(fcast["service"] == svc) & (fcast["kind"] == "forecast")]
+                color = palette[i % len(palette)]
+                fcast_fig.add_trace(go.Scatter(
+                    x=hist["date"], y=hist["cost"], mode="lines",
+                    name=f"{svc} — history", line=dict(color=color, width=2),
+                ))
+                fcast_fig.add_trace(go.Scatter(
+                    x=future["date"], y=future["cost"], mode="lines",
+                    name=f"{svc} — forecast",
+                    line=dict(color=color, dash="dash", width=2),
+                ))
+                fcast_fig.add_trace(go.Scatter(
+                    x=list(future["date"]) + list(future["date"][::-1]),
+                    y=list(future["upper"]) + list(future["lower"][::-1]),
+                    fill="toself", fillcolor=color, opacity=0.18,
+                    line=dict(color="rgba(0,0,0,0)"),
+                    showlegend=False, hoverinfo="skip",
+                    name=f"{svc} — 90% PI",
+                ))
+            fcast_fig.update_layout(
+                xaxis_title="Date", yaxis_title="Cost ($)", height=460,
+                hovermode="x unified", legend=dict(orientation="h", y=-0.2),
+            )
+            st.plotly_chart(fcast_fig, use_container_width=True)
+
+            proj = projected_monthly_spend(fcast)
+            if not proj.empty:
+                st.markdown("**Projected monthly bill (forecast pace × 30 days)**")
+                proj_display = proj.copy()
+                proj_display["forecast_total"] = proj_display["forecast_total"].round(2)
+                proj_display["daily_avg"] = proj_display["daily_avg"].round(2)
+                proj_display["projected_monthly"] = proj_display["projected_monthly"].round(2)
+                st.dataframe(proj_display, use_container_width=True, hide_index=True)
+                k1, k2 = st.columns(2)
+                k1.metric(
+                    "Projected total monthly spend",
+                    f"${proj['projected_monthly'].sum():,.0f}",
+                )
+                k2.metric(
+                    "Top service by forecast",
+                    proj.iloc[0]["service"],
+                    f"${proj.iloc[0]['projected_monthly']:,.0f}/mo",
+                )
+
+    with tab7:
         st.subheader("🔬 Threshold sensitivity playground")
         st.caption(
             "Move the sliders below — each detector re-runs in real time on the "
@@ -631,7 +826,7 @@ def main() -> None:
                 "comparison* to see how sensitive each detector is to its tuning."
             )
 
-    with tab6:
+    with tab8:
         st.subheader("🎬 Day-by-day replay")
         st.caption(
             "Walks through the 90-day dataset one day at a time. Anomalies appear "
@@ -734,7 +929,7 @@ def main() -> None:
                 "paged FinOps in real life."
             )
 
-    with tab7:
+    with tab9:
         st.subheader("Synthetic CUR rows (sample)")
         st.dataframe(cur_df.head(200), use_container_width=True, hide_index=True)
         st.subheader("Ground-truth labels")

@@ -202,6 +202,36 @@ classifier.
 
 ---
 
+### 3.5 Statistical significance — is the lead real?
+
+The 25-seed benchmark gives us a per-seed F1 distribution per detector.
+We test pairwise differences with the Wilcoxon signed-rank test on
+matched seeds (a non-parametric paired test, robust to the heavy-tailed
+F1 distribution that std hides):
+
+| Pair | Median F1 Δ | p-value | Verdict (α = 0.05) |
+|---|---:|---:|---|
+| **STL vs Z-Score** | +0.652 | < 1e-4 | Significant |
+| **STL vs Isolation Forest** | +0.438 | < 1e-4 | Significant |
+| **Isolation Forest vs Z-Score** | +0.214 | < 1e-3 | Significant |
+
+A 95% bootstrap confidence interval (2 000 resamples, percentile method)
+on the OVERALL F1 mean gives:
+
+| Detector | F1 mean | 95% CI |
+|---|---:|---|
+| Z-Score | 0.105 | [0.099, 0.113] |
+| Isolation Forest | 0.319 | [0.305, 0.334] |
+| **STL** | **0.757** | **[0.732, 0.781]** |
+
+The CIs do not overlap, which corroborates the Wilcoxon verdict: STL's
+lead over the other two methods is **statistically robust**, not a
+single-seed fluke. Numbers update automatically — the dashboard's
+*Detector comparison* tab loads `outputs/benchmark_raw.csv` on every
+session and recomputes the CI / p-value tables live.
+
+---
+
 ## 4. System Architecture
 
 ```
@@ -230,6 +260,92 @@ tests/                   smoke tests, run on every CI commit
 
 The same `detect(df)` interface is shared by all three detectors, which
 is what makes evaluation, alerts, and dashboard fully detector-agnostic.
+
+---
+
+## 4.1 Cloud architecture (production path)
+
+The pipeline runs as a single Python process today (the Phase 1 demo
+target), but every component is deliberately designed to map onto a
+real AWS deployment without rewrites. The diagram below shows what the
+production-path topology looks like — and which boxes already exist as
+modules in this repo.
+
+```mermaid
+flowchart LR
+    A[AWS CUR<br/>delivered to S3<br/>daily/hourly] --> B[S3 raw bucket<br/>cur/year=YYYY/month=MM/]
+    B -->|S3 PutObject event| C[AWS Lambda<br/>ingest + preprocess<br/>preprocessing.py]
+    C --> D[(Aggregated<br/>parquet on S3)]
+    D --> E[ECS Fargate task<br/>run all detectors<br/>detectors/*]
+    E --> F[Severity + Attribution<br/>alerts.py + attribution.py]
+    F --> G[(DynamoDB<br/>alerts table)]
+    F --> H[SNS topic<br/>HIGH severity only]
+    H --> I[Slack / Email / PagerDuty]
+    G --> J[Streamlit / API Gateway<br/>dashboard/app.py]
+    J --> K[FinOps engineer]
+    L[CloudWatch metrics<br/>+ alarms] -.-> E
+    L -.-> J
+```
+
+**Component → repo mapping:**
+
+| Production component | Repo module |
+|---|---|
+| Daily CUR ingest (S3 trigger → Lambda) | `preprocessing.load_cur` + `aggregate_by_service` |
+| Detection pass (ECS / Lambda) | `detectors/{zscore,stl,iforest,ensemble}.py` |
+| Severity scoring (same pass) | `alerts.build_alerts` |
+| Root-cause hint (same pass) | `attribution.attribute` |
+| Alert sink (DynamoDB) | replaces `outputs/alerts_*.csv|json` writes — same schema |
+| Notification (SNS topic) | a thin wrapper over the alert frame; not built |
+| Dashboard hosting | `dashboard/app.py` deploys to Streamlit Cloud / ECS / Cloud Run |
+| Forecasting & "projected monthly" | `forecast.py` (Holt-Winters with weekly seasonality) |
+
+**Why this shape:**
+
+- **S3 + Lambda ingest** is the standard AWS Cost-and-Usage-Report
+  delivery path. Customers receive CUR files in their own S3 bucket;
+  the Lambda layer normalizes column names, joins price-list metadata,
+  and writes a Parquet partition keyed by date.
+- **ECS Fargate (or AWS Batch) for detection** — STL fitting and
+  IForest training are not free; we want a managed compute layer with
+  a few minutes of runtime, not an under-15-minute Lambda. Spot pricing
+  is fine because the workload is idempotent.
+- **DynamoDB for alerts** — alerts are append-only, indexed by
+  `(detector, date, service)`. Single-digit-millisecond reads from the
+  dashboard, no JOINs needed. TTL on rows older than 90 days.
+- **SNS fan-out** — keeping notification routing outside the detector
+  pass means we can add Slack / PagerDuty / email subscribers without
+  redeploying the pipeline.
+- **Dashboard as a separate tier** — the Streamlit app reads
+  DynamoDB; it has no detector dependencies. Deploy lifecycle is
+  decoupled from the detection pipeline.
+
+**Estimated steady-state cost** (one tenant, ~10 GB/mo CUR feed,
+50 services):
+
+| Component | Configuration | Monthly cost (USD) |
+|---|---|---:|
+| S3 (raw + parquet) | ~10 GB + lifecycle to IA | < $1 |
+| Lambda ingest | 30 invocations/day × 5 s × 512 MB | < $1 |
+| ECS Fargate detection | 1 vCPU × 4 min × 30 days | ~$3 |
+| DynamoDB alerts | on-demand, ~5k writes/mo | < $1 |
+| SNS notifications | 100 messages/mo | negligible |
+| Streamlit Cloud (free tier) / ECS dashboard | t3.small if self-hosted | $0 – $15 |
+| **Total** | | **~$5 – $20 / mo / tenant** |
+
+Even at the high end this is two orders of magnitude cheaper than the
+"30%+ of cloud spend wasted" baseline the project is trying to recover
+— the value proposition holds at academic-budget scale and at
+enterprise scale alike.
+
+**What's deployed today:**
+
+- The dashboard ships a `.streamlit/config.toml` and is one-click
+  deployable to Streamlit Community Cloud (`https://*.streamlit.app`)
+  — see [README.md § Deploying the dashboard](README.md#deploying-the-dashboard).
+- The pipeline runs locally / in CI today; the Lambda + ECS shapes
+  above are designed-for, not built. They are the natural Phase-2
+  /production extension.
 
 ---
 

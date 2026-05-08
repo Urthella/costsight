@@ -220,6 +220,83 @@ def cost_saved_estimate(
     }
 
 
+def bootstrap_f1_ci(
+    raw_runs: pd.DataFrame,
+    detector: str,
+    anomaly_type: str,
+    n_resamples: int = 2000,
+    confidence: float = 0.95,
+    rng_seed: int = 0,
+) -> dict[str, float]:
+    """Percentile-bootstrap CI for mean F1 across seed runs.
+
+    `raw_runs` is the per-seed table from `benchmark.run().raw` (one row per
+    seed × detector × anomaly_type). Returns lower / upper bounds at the
+    requested confidence level along with the empirical mean.
+    """
+    import numpy as np
+
+    sub = raw_runs[
+        (raw_runs["detector"] == detector) & (raw_runs["anomaly_type"] == anomaly_type)
+    ]["f1"].to_numpy()
+    if len(sub) == 0:
+        return {"mean": float("nan"), "lo": float("nan"), "hi": float("nan"), "n": 0}
+
+    rng = np.random.default_rng(rng_seed)
+    means = []
+    for _ in range(n_resamples):
+        sample = rng.choice(sub, size=len(sub), replace=True)
+        means.append(sample.mean())
+    alpha = (1 - confidence) / 2
+    lo = float(np.quantile(means, alpha))
+    hi = float(np.quantile(means, 1 - alpha))
+    return {
+        "mean": float(sub.mean()),
+        "lo": lo,
+        "hi": hi,
+        "n": int(len(sub)),
+        "confidence": confidence,
+    }
+
+
+def paired_significance(
+    raw_runs: pd.DataFrame,
+    detector_a: str,
+    detector_b: str,
+    anomaly_type: str = "OVERALL",
+) -> dict[str, float]:
+    """Paired Wilcoxon signed-rank test on per-seed F1 for two detectors.
+
+    Tests whether one detector's F1 is consistently higher than the other's
+    across seeds. p < 0.05 → the difference is statistically significant.
+    """
+    sub_a = raw_runs[
+        (raw_runs["detector"] == detector_a) & (raw_runs["anomaly_type"] == anomaly_type)
+    ].sort_values("seed")
+    sub_b = raw_runs[
+        (raw_runs["detector"] == detector_b) & (raw_runs["anomaly_type"] == anomaly_type)
+    ].sort_values("seed")
+    common_seeds = sorted(set(sub_a["seed"]) & set(sub_b["seed"]))
+    if len(common_seeds) < 5:
+        return {"statistic": float("nan"), "p_value": float("nan"), "n": len(common_seeds)}
+
+    a = sub_a[sub_a["seed"].isin(common_seeds)].sort_values("seed")["f1"].to_numpy()
+    b = sub_b[sub_b["seed"].isin(common_seeds)].sort_values("seed")["f1"].to_numpy()
+    diffs = a - b
+    if (diffs == 0).all():
+        return {"statistic": 0.0, "p_value": 1.0, "n": len(common_seeds), "median_delta": 0.0}
+
+    from scipy.stats import wilcoxon  # type: ignore
+
+    res = wilcoxon(a, b, zero_method="wilcox", alternative="two-sided", correction=False)
+    return {
+        "statistic": float(res.statistic),
+        "p_value": float(res.pvalue),
+        "n": len(common_seeds),
+        "median_delta": float(pd.Series(diffs).median()),
+    }
+
+
 def evaluate_alerts(
     alerts: pd.DataFrame, labels: pd.DataFrame
 ) -> pd.DataFrame:

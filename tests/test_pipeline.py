@@ -14,12 +14,15 @@ from cloud_anomaly.attribution import attribute
 from cloud_anomaly.benchmark import run as run_benchmark
 from cloud_anomaly.detectors import DETECTORS
 from cloud_anomaly.evaluation import (
+    bootstrap_f1_ci,
     compare_detectors,
     cost_saved_estimate,
     evaluate,
     evaluate_alerts,
+    paired_significance,
     time_to_detect,
 )
+from cloud_anomaly.forecast import forecast_per_service, projected_monthly_spend
 from cloud_anomaly.preprocessing import aggregate_by_service
 from cloud_anomaly.synthetic_data import generate
 
@@ -120,3 +123,37 @@ def test_time_to_detect_and_cost_saved():
     assert saved["saved"] >= 0
     assert saved["total_anomaly_cost"] >= 0
     assert 0 <= saved["ratio"] <= 1.0
+
+
+def test_bootstrap_and_significance():
+    from cloud_anomaly.benchmark import run as run_benchmark
+    result = run_benchmark(n_seeds=5, n_days=60, base_seed=3000)
+    raw = result.raw
+
+    ci = bootstrap_f1_ci(raw, "stl", "OVERALL", n_resamples=200)
+    assert {"mean", "lo", "hi", "n"} <= set(ci.keys())
+    assert ci["lo"] <= ci["mean"] <= ci["hi"]
+    assert ci["n"] == 5
+
+    sig = paired_significance(raw, "stl", "zscore", anomaly_type="OVERALL")
+    assert {"statistic", "p_value", "n"} <= set(sig.keys())
+    assert sig["n"] == 5
+    if not pd.isna(sig["p_value"]):
+        assert 0.0 <= sig["p_value"] <= 1.0
+
+
+def test_forecast_runs():
+    cur, _, _ = generate(n_days=60, seed=11)
+    long = aggregate_by_service(cur)
+    fcast = forecast_per_service(long, horizon=7)
+    assert {"date", "service", "kind", "cost", "lower", "upper"} <= set(fcast.columns)
+    assert (fcast["kind"].isin(["history", "forecast"])).all()
+    forecast_rows = fcast[fcast["kind"] == "forecast"]
+    if not forecast_rows.empty:
+        assert (forecast_rows["lower"] <= forecast_rows["upper"]).all()
+        assert (forecast_rows["cost"] >= 0).all()
+
+    proj = projected_monthly_spend(fcast)
+    if not proj.empty:
+        assert {"service", "projected_monthly", "daily_avg"} <= set(proj.columns)
+        assert (proj["projected_monthly"] >= 0).all()

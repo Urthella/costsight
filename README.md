@@ -56,13 +56,18 @@ src/cloud_anomaly/
   config.py            project constants (services, paths, severity bands)
   synthetic_data.py    AWS CUR-style data generator + ground-truth labels
   preprocessing.py     load, aggregate, pivot, gap-fill
-  detectors/           zscore, stl, iforest — common detect(df) interface
+  detectors/           zscore, stl, iforest, ensemble — common detect(df) interface
   alerts.py            severity = deviation × duration × $impact
   attribution.py       root-cause hint per alert (region / usage_type)
-  evaluation.py        Precision / Recall, per-anomaly-type, alert quality
+  evaluation.py        Precision / Recall, alert quality, TTD,
+                       cost-saved estimate, bootstrap CI, Wilcoxon test
+  forecast.py          Holt-Winters per-service forecast + projection
+  theoretical_scores.py proposal a-priori ratings (radar charts)
   benchmark.py         multi-seed Monte Carlo runner
   pipeline.py          run() — wires everything together
-dashboard/app.py       Streamlit UI (4 tabs)
+dashboard/app.py       Streamlit UI (9 tabs: cost trend / alert log /
+                       root-cause / detector comparison / calendar /
+                       forecast / lab / replay / raw data)
 scripts/
   run_pipeline.py        single-run CLI
   run_benchmark.py       25-seed CLI
@@ -155,13 +160,35 @@ triage.
 pytest -q
 ```
 
+## Deploying the dashboard
+
+The Streamlit dashboard is one-click deployable to **Streamlit Community
+Cloud** — the easiest path to a live URL for the demo.
+
+1. Sign in at <https://streamlit.io/cloud> with your GitHub account.
+2. Click **New app**, point it at this repository, branch `main`,
+   main file path: `dashboard/app.py`.
+3. Python version: **3.11**. The platform installs everything from
+   `requirements.txt` automatically; no extra config is needed.
+4. Once it builds (~3 min), Streamlit publishes a public URL of the form
+   `https://<app-name>.streamlit.app`. Share it during the demo.
+
+`.streamlit/config.toml` is committed and pre-configures the dark theme
+and the brand color, so the deployed instance looks identical to local.
+
+For a containerized deploy (ECS, Cloud Run, Fly.io, Render), see
+[`REPORT.md` § Cloud architecture](REPORT.md#cloud-architecture-production-path).
+
 ## Scope
 
-Phase 1 (May 20 deadline): synthetic data, three detectors, alert module,
-dashboard, P/R evaluation. Phase 2 (post-finals): comparison report,
-multi-seed benchmark, demo presentation. Out of scope: real-time
-streaming, multi-cloud, production deployment, auto-remediation, cost
-forecasting.
+Phase 1 (May 20 deadline): synthetic data, three detectors plus an
+ensemble vote, alert module, root-cause attribution, P/R evaluation,
+multi-seed benchmark, dashboard with calendar / forecast / lab /
+replay tabs, statistical significance tests. Phase 2 (post-finals):
+comparison report extension, paper-style writeup. Out of scope:
+real-time streaming, multi-cloud ingestion, production deployment of
+the detection pipeline (the dashboard is deployable; the pipeline
+remains batch).
 
 ## License
 
