@@ -1,0 +1,38 @@
+name: Weekly benchmark
+
+on:
+  schedule:
+    # Sundays at 02:00 UTC. Cron is in UTC.
+    - cron: "0 2 * * 0"
+  workflow_dispatch: {}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Run 25-seed benchmark
+        run: python scripts/run_benchmark.py --seeds 25
+
+      - name: Render presentation figures
+        run: python scripts/make_figures.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ github.run_id }}
+          path: |
+            outputs/benchmark_summary.csv
+            outputs/benchmark_raw.csv
+            slides/figures/*.png
+          retention-days: 90

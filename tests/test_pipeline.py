@@ -142,6 +142,41 @@ def test_bootstrap_and_significance():
         assert 0.0 <= sig["p_value"] <= 1.0
 
 
+def test_api_smoke():
+    from fastapi.testclient import TestClient
+    from cloud_anomaly.api import app
+
+    client = TestClient(app)
+
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+    r = client.get("/")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["service"] == "costsight"
+    assert "stl" in body["detectors"]
+
+    r = client.post("/generate", json={"n_days": 60, "seed": 99})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["n_days"] == 60
+    assert body["n_services"] >= 5
+    assert len(body["anomalies_injected"]) >= 3
+
+    cur, _, _ = generate(n_days=60, seed=99)
+    long = aggregate_by_service(cur)
+    sample = long.head(200).copy()
+    sample["date"] = sample["date"].dt.strftime("%Y-%m-%d")
+    payload = {"detector": "stl", "rows": sample.to_dict(orient="records")}
+    r = client.post("/detect", json=payload)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["detector"] == "stl"
+    assert body["n_points"] == 200
+
+
 def test_forecast_runs():
     cur, _, _ = generate(n_days=60, seed=11)
     long = aggregate_by_service(cur)

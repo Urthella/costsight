@@ -179,6 +179,51 @@ and the brand color, so the deployed instance looks identical to local.
 For a containerized deploy (ECS, Cloud Run, Fly.io, Render), see
 [`REPORT.md` § Cloud architecture](REPORT.md#cloud-architecture-production-path).
 
+### Docker (one-shot local stack)
+
+```bash
+docker compose up --build          # dashboard on :8501, REST API on :8000
+```
+
+The compose file boots two services off the same image:
+
+- `dashboard` — Streamlit UI (`http://localhost:8501`).
+- `api` — FastAPI REST surface (`http://localhost:8000`, OpenAPI at `/docs`).
+
+Both mount `./data`, `./outputs`, and `./examples` as volumes so artifacts
+survive container restarts.
+
+### REST API (FastAPI)
+
+The same detection pipeline is also exposed as an HTTP service so it can
+sit behind API Gateway / ALB in a real cloud deploy.
+
+```bash
+uvicorn cloud_anomaly.api:app --reload --port 8000
+```
+
+Endpoints:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET  | `/health`     | Liveness probe |
+| GET  | `/`           | Service metadata + detector list |
+| POST | `/generate`   | Produce a synthetic dataset (n_days, seed) |
+| POST | `/detect`     | Run a detector on supplied long-format JSON |
+| POST | `/alerts`     | Detect → severity-band → root-cause attribution |
+| GET  | `/metrics`    | Multi-detector P/R/F1 against on-disk ground truth |
+| GET  | `/forecast`   | Holt-Winters per-service forecast (horizon_days) |
+
+Browse the auto-generated OpenAPI docs at `/docs` (Swagger UI) or `/redoc`.
+
+### Continuous benchmarking
+
+`.github/workflows/benchmark.yml` re-runs the 25-seed Monte Carlo every
+Sunday at 02:00 UTC and uploads `outputs/benchmark_summary.csv`,
+`outputs/benchmark_raw.csv`, and the regenerated presentation figures
+as a 90-day-retained workflow artifact. Trigger a manual run from the
+**Actions** tab if you want fresh numbers ahead of a demo.
+
 ## Scope
 
 Phase 1 (May 20 deadline): synthetic data, three detectors plus an
