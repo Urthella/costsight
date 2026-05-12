@@ -164,6 +164,51 @@ def test_carbon_and_recommender_and_tagging():
         assert (anom_carbon["kg_co2"] >= 0).all()
 
 
+def test_drift_and_explainer():
+    from cloud_anomaly.drift import detect_drift, page_hinkley, adwin_lite
+    from cloud_anomaly.explainer import explain_alert, clear_cache
+
+    cur, _, _ = generate(n_days=90, seed=11, scenario="drift_heavy")
+    long = aggregate_by_service(cur)
+
+    # Page-Hinkley + ADWIN should each find at least one drift event in
+    # the drift-heavy scenario; aggregated drift_df should be non-empty.
+    s3_series = long[long["service"] == "S3"].sort_values("date")["cost"]
+    ph_idx = page_hinkley(s3_series, threshold=30)
+    adw_idx = adwin_lite(s3_series, min_window=7, sensitivity=0.20)
+    assert (len(ph_idx) + len(adw_idx)) >= 1
+
+    drift_df = detect_drift(long)
+    assert {
+        "service", "change_date", "direction", "magnitude_pct",
+        "detector", "confidence",
+    } <= set(drift_df.columns)
+
+    # Explainer — force template mode (no API key) and check we get text.
+    clear_cache()
+    alert_row = {
+        "date": pd.Timestamp("2025-03-15"),
+        "service": "EC2",
+        "severity": "HIGH",
+        "cost": 957.0,
+        "flagged_by": "stl, iforest",
+    }
+    attr_row = {
+        "top_dimension": "region",
+        "top_value": "us-east-1",
+        "summary": "EC2 spend exploded; us-east-1 drove 100%",
+        "baseline_cost": 200.0,
+    }
+    exp = explain_alert(alert_row, attr_row, cur, force_template=True)
+    assert exp.source == "template"
+    assert "EC2" in exp.text
+    assert "us-east-1" in exp.text
+
+    # Second call should hit cache.
+    exp2 = explain_alert(alert_row, attr_row, cur, force_template=True)
+    assert exp2.source == "cache"
+
+
 def test_clustering_and_perf():
     from cloud_anomaly.clustering import cluster_alerts, summarize_incidents
     from cloud_anomaly.perf import time_detector

@@ -54,6 +54,9 @@ from cloud_anomaly.carbon import (  # noqa: E402
 )
 from cloud_anomaly.recommender import all_recommendations  # noqa: E402
 from cloud_anomaly.tag_governance import evaluate_tagging  # noqa: E402
+from cloud_anomaly.drift import detect_drift  # noqa: E402
+from cloud_anomaly.explainer import explain_alert  # noqa: E402
+import os  # noqa: E402
 from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.iforest import detect as iforest_detect_raw  # noqa: E402
@@ -306,12 +309,14 @@ def main() -> None:
         "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
         "💰 Budget", "📘 Playbook", "🧩 Incidents", "⚡ Perf",
         "🌱 Carbon", "💡 Recommendations", "🏷️ Tagging",
+        "🤖 AI Explain", "🌊 Drift",
         "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
     ])
     (
         tab1, tab2, tab3, tab4, tab5, tab6,
         tab_budget, tab_playbook, tab_incidents, tab_perf,
         tab_carbon, tab_reco, tab_tagging,
+        tab_ai, tab_drift,
         tab7, tab8, tab9,
     ) = tabs
 
@@ -1176,6 +1181,106 @@ def main() -> None:
                     "Save as `required-tags.yaml` and apply via AWS Config "
                     "or an SCP at the Organizations root — every new deploy "
                     "without the required tags is then a compliance violation."
+                )
+
+    with tab_ai:
+        st.subheader("🤖 AI-powered root-cause explanation")
+        has_key = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+        if has_key:
+            st.success(
+                "✅ ANTHROPIC_API_KEY is set — using the live Claude API "
+                "(model = claude-haiku-4-5, max 400 tokens, cached per alert)."
+            )
+        else:
+            st.info(
+                "ℹ️ No ANTHROPIC_API_KEY in env — falling back to the deterministic "
+                "template explainer. Set the env var before launching Streamlit to "
+                "get live AI explanations: `setx ANTHROPIC_API_KEY sk-…`."
+            )
+        if filtered_alerts.empty:
+            st.info("No alerts in the current filter.")
+        else:
+            top = filtered_alerts.sort_values("severity_score", ascending=False).head(20)
+            options = [
+                f"{pd.Timestamp(r['date']).strftime('%Y-%m-%d')} · {r['service']} · {r['severity']}"
+                for _, r in top.iterrows()
+            ]
+            pick = st.selectbox("Pick an alert to explain", options=options, key="ai_pick")
+            row = top.iloc[options.index(pick)].to_dict()
+
+            # Match attribution row if present (same date+service).
+            from cloud_anomaly.attribution import attribute as _attr
+            attr_df = _attr(cur_df, top.iloc[[options.index(pick)]])
+            attr_row = attr_df.iloc[0].to_dict() if not attr_df.empty else {}
+
+            if st.button("Generate explanation", key="ai_go"):
+                with st.spinner("Asking Claude…" if has_key else "Generating template…"):
+                    exp = explain_alert(row, attr_row, cur_df)
+                st.markdown(exp.text)
+                meta_cols = st.columns(3)
+                meta_cols[0].metric("Source", exp.source)
+                meta_cols[1].metric("Model", exp.model)
+                if exp.input_tokens or exp.output_tokens:
+                    meta_cols[2].metric(
+                        "Tokens (in/out)",
+                        f"{exp.input_tokens}/{exp.output_tokens}",
+                    )
+
+    with tab_drift:
+        st.subheader("🌊 Concept drift — has the *baseline* itself shifted?")
+        st.caption(
+            "Detectors assume a stable baseline. When the normal level *itself* "
+            "drifts, detector thresholds should be recalibrated. Page-Hinkley "
+            "(one-pass change-point) and ADWIN-lite (adaptive windowing) flag "
+            "those baseline shifts independently of the anomaly stream."
+        )
+        with st.spinner("Running drift detectors…"):
+            drift_df = detect_drift(long)
+        if drift_df.empty:
+            st.success("No baseline drift detected — workload is in a stable regime.")
+        else:
+            dc1, dc2, dc3 = st.columns(3)
+            dc1.metric("Drift events", len(drift_df))
+            dc2.metric("Services affected", drift_df["service"].nunique())
+            dc3.metric(
+                "Up vs down",
+                f"{(drift_df['direction']=='up').sum()}↑ / {(drift_df['direction']=='down').sum()}↓",
+            )
+
+            view = drift_df.copy()
+            view["change_date"] = view["change_date"].dt.strftime("%Y-%m-%d")
+            st.dataframe(view, use_container_width=True, hide_index=True)
+
+            # Overlay drift markers on the daily-total cost trend.
+            drift_fig = go.Figure()
+            drift_fig.add_trace(go.Scatter(
+                x=daily["date"], y=daily["cost"], mode="lines",
+                name="Daily cost", line=dict(color="#94A3B8", width=2),
+            ))
+            for _, ev in drift_df.iterrows():
+                drift_fig.add_vline(
+                    x=ev["change_date"],
+                    line=dict(color="#F59E0B" if ev["direction"] == "up" else "#3B82F6",
+                              dash="dash", width=2),
+                    annotation_text=f"{ev['service']} {ev['direction']} {ev['magnitude_pct']:.0f}%",
+                    annotation_position="top",
+                )
+            drift_fig.update_layout(
+                title="Baseline drift events on the daily-total spend timeline",
+                height=380, hovermode="x unified",
+            )
+            st.plotly_chart(drift_fig, use_container_width=True)
+
+            with st.expander("How to read this"):
+                st.markdown(
+                    "- **Gold dashed line** = baseline shifted *upward* "
+                    "(e.g. an autoscaling cap raise that didn't get reverted).\n"
+                    "- **Blue dashed line** = baseline shifted *downward* "
+                    "(e.g. a successful rightsizing).\n"
+                    "- Drift events are *not* anomalies — they're shifts in "
+                    "the normal level. If a detector keeps firing after a "
+                    "drift event, its rolling window may need to be shortened, "
+                    "or its threshold raised."
                 )
 
     with tab7:

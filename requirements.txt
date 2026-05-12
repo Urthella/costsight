@@ -11,4 +11,5 @@ fastapi>=0.110
 uvicorn[standard]>=0.27
 pydantic>=2.6
 httpx>=0.27
+anthropic>=0.39
 pytest>=8.0
