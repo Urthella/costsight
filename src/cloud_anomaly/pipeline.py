@@ -17,13 +17,16 @@ from .synthetic_data import generate
 def run(
     regenerate: bool = True,
     out_dir: Path | None = None,
+    n_days: int = 90,
+    seed: int = 42,
+    scenario: str = "default",
 ) -> dict[str, pd.DataFrame]:
     """Run the full pipeline; returns a dict of intermediate artifacts."""
     out_dir = out_dir or OUTPUTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if regenerate or not (RAW_DIR / "cur_synthetic.parquet").exists():
-        cur_df, labels_df, _ = generate()
+        cur_df, labels_df, _ = generate(n_days=n_days, seed=seed, scenario=scenario)
     else:
         cur_df = load_cur()
         labels_df = pd.read_csv(RAW_DIR / "ground_truth_labels.csv", parse_dates=["date"])

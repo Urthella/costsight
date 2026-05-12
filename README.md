@@ -224,6 +224,64 @@ Sunday at 02:00 UTC and uploads `outputs/benchmark_summary.csv`,
 as a 90-day-retained workflow artifact. Trigger a manual run from the
 **Actions** tab if you want fresh numbers ahead of a demo.
 
+## Install as a library
+
+After the first release (`v1.0.0` tag), the package is on PyPI:
+
+```bash
+pip install costsight                  # core: detectors + alerts + attribution
+pip install "costsight[dashboard]"     # + Streamlit dashboard deps
+pip install "costsight[api]"           # + FastAPI / uvicorn
+pip install "costsight[llm]"           # + anthropic SDK for AI explanations
+pip install "costsight[dev]"           # everything, plus pytest
+```
+
+Shell commands installed alongside the package:
+
+```bash
+costsight-pipeline --days 90 --seed 42 --scenario drift_heavy
+costsight-benchmark --seeds 25
+costsight-api --host 0.0.0.0 --port 8000
+```
+
+Programmatic use:
+
+```python
+from cloud_anomaly.synthetic_data import generate
+from cloud_anomaly.detectors import DETECTORS
+from cloud_anomaly.alerts import build_alerts
+from cloud_anomaly.carbon import carbon_footprint
+
+cur, labels, _ = generate(n_days=90, seed=42)
+detections = DETECTORS["stl"](cur.groupby(["date","service"]).sum().reset_index())
+alerts = build_alerts(detections, detector_name="stl", dataset_days=90)
+carbon = carbon_footprint(cur)
+print(f"This run emitted {carbon.kg_co2:.0f} kgCO₂-eq ({carbon.km_driven_equiv:.0f} km equiv).")
+```
+
+Releases are tag-driven: pushing `v1.x.y` triggers the
+`.github/workflows/release.yml` workflow which builds the
+sdist + wheel and publishes to PyPI via trusted-publishing
+(no API token in the repo).
+
+## Provision the cloud architecture
+
+The production-path architecture documented in
+[REPORT.md § 4.1](REPORT.md#cloud-architecture-production-path) is
+shipped as a real Terraform module under [`terraform/`](terraform/):
+
+```bash
+cd terraform/
+terraform init
+terraform plan -var="env=dev" -var="alert_email=you@example.com"
+terraform apply -var="env=dev" -var="alert_email=you@example.com"
+```
+
+Brings up: S3 raw + aggregated buckets, DynamoDB alerts table (PITR +
+TTL), SNS alerts topic with optional email subscription, ingest Lambda
++ S3 trigger, and (optionally) a self-hosted dashboard ECS service.
+Steady-state cost ~$5/mo per tenant at the default toggles.
+
 ## Scope
 
 Phase 1 (May 20 deadline): synthetic data, three detectors plus an

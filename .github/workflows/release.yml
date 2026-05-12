@@ -1,0 +1,37 @@
+name: Release to PyPI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # Required by PyPI trusted publishing (no API token needed).
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: pip install --upgrade build twine
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Check distribution
+        run: twine check dist/*
+
+      - name: Publish to PyPI (trusted publishing)
+        # Configure trusted publishing on pypi.org: account → "Add a new pending publisher"
+        # github repo = Urthella/costsight, workflow = release.yml, environment = (none).
+        # Until then, this step will fail loudly — switch to `password: ${{ secrets.PYPI_API_TOKEN }}` if needed.
+        uses: pypa/gh-action-pypi-publish@release/v1
