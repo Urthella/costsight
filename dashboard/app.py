@@ -46,6 +46,14 @@ from cloud_anomaly.pricing import (  # noqa: E402
 )
 from cloud_anomaly.clustering import cluster_alerts, summarize_incidents  # noqa: E402
 from cloud_anomaly.perf import benchmark_grid  # noqa: E402
+from cloud_anomaly.carbon import (  # noqa: E402
+    CARBON_SNAPSHOT_DATE,
+    attribute_carbon_to_alerts,
+    carbon_footprint,
+    greener_region_recommendation,
+)
+from cloud_anomaly.recommender import all_recommendations  # noqa: E402
+from cloud_anomaly.tag_governance import evaluate_tagging  # noqa: E402
 from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.iforest import detect as iforest_detect_raw  # noqa: E402
@@ -297,11 +305,13 @@ def main() -> None:
         "📈 Cost trend", "🚨 Alert log", "🔎 Root-cause",
         "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
         "💰 Budget", "📘 Playbook", "🧩 Incidents", "⚡ Perf",
+        "🌱 Carbon", "💡 Recommendations", "🏷️ Tagging",
         "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
     ])
     (
         tab1, tab2, tab3, tab4, tab5, tab6,
         tab_budget, tab_playbook, tab_incidents, tab_perf,
+        tab_carbon, tab_reco, tab_tagging,
         tab7, tab8, tab9,
     ) = tabs
 
@@ -1020,6 +1030,153 @@ def main() -> None:
                 title="Throughput (rows/sec) by detector and dataset size",
             )
             st.plotly_chart(throughput, use_container_width=True)
+
+    with tab_carbon:
+        st.subheader("🌱 Carbon footprint of cloud spend")
+        st.caption(
+            f"USD spend × per-service energy intensity (kWh/$) × per-region "
+            f"grid carbon intensity (kgCO₂/kWh). Methodology snapshot from "
+            f"{CARBON_SNAPSHOT_DATE} — AWS Customer Carbon Footprint Tool + "
+            f"national grid mix data (eGRID, ENTSO-E)."
+        )
+        carbon = carbon_footprint(cur_df)
+        cc1, cc2, cc3, cc4 = st.columns(4)
+        cc1.metric("Total cost", f"${carbon.cost_usd:,.0f}")
+        cc2.metric("kgCO₂-eq emitted", f"{carbon.kg_co2:,.0f}")
+        cc3.metric("Equivalent km driven", f"{carbon.km_driven_equiv:,.0f}",
+                   help="EPA 2023 fleet average: 0.251 kgCO₂/km")
+        cc4.metric("Tree-years to absorb", f"{carbon.tree_years_equiv:,.1f}",
+                   help="EPA: 1 mature tree absorbs ~21 kgCO₂/year")
+
+        col_a, col_b = st.columns([3, 2])
+        with col_a:
+            st.markdown("**Per-service breakdown**")
+            svc_chart = px.bar(
+                carbon.by_service, x="service", y="kg_co2",
+                color="kg_co2", color_continuous_scale="Reds",
+                title="kgCO₂-eq by service",
+                height=380,
+            )
+            st.plotly_chart(svc_chart, use_container_width=True)
+            st.dataframe(carbon.by_service, use_container_width=True, hide_index=True)
+        with col_b:
+            st.markdown("**Per-region breakdown**")
+            st.dataframe(carbon.by_region, use_container_width=True, hide_index=True)
+            st.markdown("**Greener-region suggestions**")
+            regions_used = sorted(cur_df["region"].unique())
+            for r in regions_used:
+                hint = greener_region_recommendation(r)
+                if hint["to_region"] != hint["from_region"]:
+                    st.write(
+                        f"🌿 `{hint['from_region']}` → `{hint['to_region']}` — "
+                        f"**{hint['improvement_pct']}%** cleaner grid "
+                        f"({hint['current_kg_per_kwh']} → {hint['proposed_kg_per_kwh']} kgCO₂/kWh)"
+                    )
+
+        st.markdown("---")
+        st.subheader("Anomaly carbon — what each alert *also* cost in CO₂")
+        if filtered_alerts.empty:
+            st.info("No alerts in the current filter → no anomaly-level carbon to attribute.")
+        else:
+            anom_carbon = attribute_carbon_to_alerts(cur_df, filtered_alerts)
+            if anom_carbon.empty:
+                st.info("Could not match alerts to CUR rows.")
+            else:
+                view = anom_carbon.copy()
+                view["date"] = view["date"].dt.strftime("%Y-%m-%d")
+                st.dataframe(view, use_container_width=True, hide_index=True)
+                st.caption(
+                    f"Total anomaly carbon: **{anom_carbon['kg_co2'].sum():.1f} kgCO₂-eq** "
+                    f"(≈ {anom_carbon['km_driven_equiv'].sum():.0f} km in an average car). "
+                    f"This is the ESG dimension of every dollar leaked to a cost spike."
+                )
+
+    with tab_reco:
+        st.subheader("💡 Cost-optimization recommendations")
+        st.caption(
+            "Independent of any active anomaly: where could this account save "
+            "money *today*? Heuristics scan the CUR for the four most common "
+            "FinOps wins. Confidence is high/medium/low; we surface rationale "
+            "so reviewers can audit every finding."
+        )
+        recs = all_recommendations(cur_df)
+        if recs.empty:
+            st.info("No optimization candidates found — workload is already pretty tight.")
+        else:
+            total_savings = float(recs["impact_usd_per_month"].sum())
+            r1, r2, r3 = st.columns(3)
+            r1.metric("Findings", len(recs))
+            r2.metric("Total monthly savings", f"${total_savings:,.0f}")
+            r3.metric("Annualized", f"${total_savings*12:,.0f}")
+
+            cat_chart = px.bar(
+                recs.groupby("category", as_index=False)["impact_usd_per_month"].sum(),
+                x="category", y="impact_usd_per_month",
+                color="category", title="Monthly savings by category",
+                height=320,
+            )
+            st.plotly_chart(cat_chart, use_container_width=True)
+
+            for _, row in recs.iterrows():
+                conf_icon = {"high": "🟢", "medium": "🟡", "low": "🟠"}.get(row["confidence"], "⚪")
+                with st.expander(
+                    f"{conf_icon} **{row['category']}** · {row['service']} · "
+                    f"~${row['impact_usd_per_month']:,.0f}/mo savings"
+                ):
+                    st.markdown(f"**Region:** {row['region']}")
+                    st.markdown(f"**Confidence:** {row['confidence']}")
+                    st.markdown(f"**Action:** {row['action']}")
+                    st.markdown(f"**Rationale:** {row['rationale']}")
+
+    with tab_tagging:
+        st.subheader("🏷️ Tag governance — quantify and fix tag debt")
+        st.caption(
+            "Untagged spend has no owner → no chargeback → no incentive to "
+            "optimize. This view reports tag coverage, the dollar debt of "
+            "missing tags, and the worst per-service offenders."
+        )
+        report = evaluate_tagging(cur_df)
+        if report.coverage.empty:
+            st.info("No tag columns in the loaded dataset.")
+        else:
+            tc1, tc2, tc3 = st.columns(3)
+            tc1.metric(
+                "Tag debt (window)",
+                f"${report.debt_usd:,.0f}",
+                help="Maximum untagged spend across the required tags.",
+            )
+            tc2.metric(
+                "Annualized debt",
+                f"${report.debt_usd * 365 / max(cur_df['date'].nunique(),1):,.0f}",
+            )
+            tc3.metric(
+                "Required tags",
+                ", ".join(report.coverage["tag"]),
+            )
+
+            st.markdown("**Coverage**")
+            cov = report.coverage.copy()
+            cov["covered_pct"] = cov["covered_pct"].astype(float)
+            cov_chart = px.bar(
+                cov, x="tag", y="covered_pct",
+                color="covered_pct", color_continuous_scale="RdYlGn",
+                range_y=[0, 100], title="Tag coverage (%)", height=300,
+            )
+            st.plotly_chart(cov_chart, use_container_width=True)
+            st.dataframe(cov, use_container_width=True, hide_index=True)
+
+            if not report.worst_services.empty:
+                st.markdown("**Per-service worst offenders**")
+                st.dataframe(report.worst_services.head(10),
+                             use_container_width=True, hide_index=True)
+
+            with st.expander("📄 Policy-as-code stub (AWS Config rule)"):
+                st.code(report.policy_yaml, language="yaml")
+                st.caption(
+                    "Save as `required-tags.yaml` and apply via AWS Config "
+                    "or an SCP at the Organizations root — every new deploy "
+                    "without the required tags is then a compliance violation."
+                )
 
     with tab7:
         st.subheader("🔬 Threshold sensitivity playground")

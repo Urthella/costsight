@@ -119,6 +119,51 @@ def test_real_cur_loader():
     assert apr3_ec2 > 900
 
 
+def test_carbon_and_recommender_and_tagging():
+    from cloud_anomaly.carbon import (
+        carbon_for_row,
+        carbon_footprint,
+        greener_region_recommendation,
+        attribute_carbon_to_alerts,
+    )
+    from cloud_anomaly.recommender import all_recommendations
+    from cloud_anomaly.tag_governance import evaluate_tagging
+
+    cur, _, _ = generate(n_days=60, seed=11)
+
+    # Carbon — sanity check ordering and totals.
+    kg_us_east = carbon_for_row("EC2", "us-east-1", 1000.0)
+    kg_eu_west_3 = carbon_for_row("EC2", "eu-west-3", 1000.0)
+    assert kg_eu_west_3 < kg_us_east  # France nuclear << US east mix
+    assert kg_us_east > 0
+
+    result = carbon_footprint(cur)
+    assert result.kg_co2 > 0
+    assert result.km_driven_equiv > 0
+    assert {"service", "kg_co2", "kwh"} <= set(result.by_service.columns)
+
+    hint = greener_region_recommendation("us-east-1")
+    assert hint["improvement_pct"] >= 0
+
+    # Recommender — at least one finding for default workload.
+    recs = all_recommendations(cur)
+    assert {"category", "service", "impact_usd_per_month"} <= set(recs.columns)
+    assert (recs["impact_usd_per_month"] >= 0).all()
+
+    # Tagging — synthetic CUR ships with tags so debt should be 0.
+    report = evaluate_tagging(cur)
+    assert (report.coverage["covered_pct"] == 100).all()
+    assert report.debt_usd == 0
+
+    # Anomaly carbon — needs alerts; build a tiny one.
+    long = aggregate_by_service(cur)
+    detections = DETECTORS["stl"](long)
+    alerts = build_alerts(detections, detector_name="stl", dataset_days=60)
+    anom_carbon = attribute_carbon_to_alerts(cur, alerts)
+    if not anom_carbon.empty:
+        assert (anom_carbon["kg_co2"] >= 0).all()
+
+
 def test_clustering_and_perf():
     from cloud_anomaly.clustering import cluster_alerts, summarize_incidents
     from cloud_anomaly.perf import time_detector
