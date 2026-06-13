@@ -17,13 +17,14 @@ Endpoints:
 """
 from __future__ import annotations
 
+import io
 import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -32,6 +33,7 @@ from .attribution import attribute
 from .carbon import carbon_footprint
 from .clustering import cluster_alerts, summarize_incidents
 from .config import RAW_DIR
+from .cur_loader import load_cur_frame
 from .detectors import DETECTORS
 from .detectors.ensemble import detect as ensemble_detect
 from .drift import detect_drift
@@ -240,6 +242,17 @@ def build_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) 
         raise HTTPException(status_code=400, detail=f"unknown scenario '{scenario}'")
 
     cur_df, labels_df, _ = generate(n_days=n_days, seed=seed, scenario=scenario)
+    return _assemble_snapshot(
+        cur_df, labels_df, {"scenario": scenario, "n_days": n_days, "seed": seed}
+    )
+
+
+def _assemble_snapshot(
+    cur_df: pd.DataFrame, labels_df: pd.DataFrame, meta_extra: dict[str, Any]
+) -> dict[str, Any]:
+    """Build the full snapshot from any (cur_df, labels_df) — synthetic or an
+    uploaded real CUR. `labels_df` may be empty (uploaded data has no ground
+    truth), in which case every evaluation view degrades gracefully."""
     long = aggregate_by_service(cur_df)
     daily = aggregate_daily(cur_df)
     dataset_days = int(long["date"].nunique())
@@ -323,9 +336,7 @@ def build_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) 
 
     return {
         "meta": {
-            "scenario": scenario,
-            "n_days": n_days,
-            "seed": seed,
+            **meta_extra,
             "dataset_days": dataset_days,
             "n_services": int(cur_df["service"].nunique()),
             "services": sorted(cur_df["service"].unique().tolist()),
@@ -370,6 +381,42 @@ def http_scenarios() -> dict[str, Any]:
 def http_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) -> dict[str, Any]:
     # Positional call so it shares one lru_cache key with the startup warm-up.
     return build_snapshot(scenario, n_days, seed)
+
+
+def snapshot_from_upload(cur_df: pd.DataFrame) -> dict[str, Any]:
+    """Snapshot from an uploaded real CUR — no ground-truth labels exist, so
+    pass an empty (but correctly typed) labels frame."""
+    labels_df = pd.DataFrame(
+        {
+            "date": pd.Series(dtype="datetime64[ns]"),
+            "service": pd.Series(dtype="object"),
+            "is_anomaly": pd.Series(dtype="bool"),
+            "anomaly_type": pd.Series(dtype="object"),
+        }
+    )
+    return _assemble_snapshot(
+        cur_df,
+        labels_df,
+        {"scenario": "uploaded", "n_days": int(cur_df["date"].nunique()), "seed": 0},
+    )
+
+
+@app.post("/api/upload")
+async def http_upload(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Parse an uploaded AWS CUR CSV and build a full snapshot from real data.
+
+    Detection / alerts / attribution / forecast / carbon / recommendations all
+    run; the comparison view stays blank because real billing ships no labels.
+    """
+    content = await file.read()
+    try:
+        raw = pd.read_csv(io.BytesIO(content))
+        cur_df = load_cur_frame(raw, source=file.filename or "upload")
+    except Exception as exc:  # noqa: BLE001 — surface parse errors to the client
+        raise HTTPException(status_code=400, detail=f"Couldn't parse that CUR: {exc}")
+    if cur_df.empty:
+        raise HTTPException(status_code=400, detail="No usable rows in the uploaded CUR.")
+    return snapshot_from_upload(cur_df)
 
 
 @app.on_event("startup")

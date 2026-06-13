@@ -44,6 +44,22 @@ export interface ExplainBody {
   top_value: string;
 }
 
+export async function postUpload(file: File): Promise<Snapshot> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE}/api/upload`, { method: "POST", body: fd });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = ((await res.json()) as { detail?: string }).detail ?? detail;
+    } catch {
+      /* keep statusText */
+    }
+    throw new Error(detail);
+  }
+  return res.json() as Promise<Snapshot>;
+}
+
 export async function postExplain(body: ExplainBody): Promise<string> {
   const res = await fetch(`${BASE}/api/explain`, {
     method: "POST",

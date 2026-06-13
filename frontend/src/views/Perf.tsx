@@ -42,9 +42,20 @@ export default function Perf() {
         return (
           <>
             <Card><CardBody>
+              <div className="mb-1 text-xs text-muted-foreground">
+                Throughput varies ~1000× across detectors (Z-Score vectorizes; Isolation
+                Forest fits a model), so the axis is log-scaled — otherwise the slow
+                detectors look like zero.
+              </div>
               <Plot
                 data={traces}
-                layout={{ ...PLOT_LAYOUT_BASE, height: 340, barmode: "group", xaxis: { title: "Dataset size (days)" }, yaxis: { title: "rows / second" } }}
+                layout={{
+                  ...PLOT_LAYOUT_BASE,
+                  height: 340,
+                  barmode: "group",
+                  xaxis: { title: "Dataset size (days)" },
+                  yaxis: { title: "rows / second (log)", type: "log" },
+                }}
                 config={PLOT_CONFIG} useResizeHandler style={{ width: "100%" }}
               />
             </CardBody></Card>

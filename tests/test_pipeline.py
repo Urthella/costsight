@@ -404,3 +404,60 @@ def test_forecast_runs():
     if not proj.empty:
         assert {"service", "projected_monthly", "daily_avg"} <= set(proj.columns)
         assert (proj["projected_monthly"] >= 0).all()
+
+
+SNAPSHOT_SECTIONS = {
+    "meta", "kpis", "detectors", "daily", "series", "detections", "alerts",
+    "attribution", "comparison", "carbon", "recommendations", "tagging",
+    "drift", "incidents", "forecast", "ground_truth", "playbooks",
+}
+
+
+def test_api_snapshot_endpoint():
+    """The single endpoint the React app fans out across all views."""
+    from fastapi.testclient import TestClient
+    from cloud_anomaly.api import app
+
+    client = TestClient(app)
+    r = client.get("/api/snapshot?scenario=default&n_days=60&seed=1")
+    assert r.status_code == 200
+    s = r.json()
+    assert SNAPSHOT_SECTIONS <= set(s.keys())
+    assert s["meta"]["scenario"] == "default"
+    assert s["kpis"]["total_flags"] >= 0
+    assert len(s["detections"]) == 4  # zscore, stl, iforest, ensemble
+
+    # Unknown scenario is a clean 400, not a 500.
+    assert client.get("/api/snapshot?scenario=nope").status_code == 400
+
+
+def test_api_upload_real_cur():
+    """Uploading a real AWS CUR produces a full snapshot with empty labels."""
+    from fastapi.testclient import TestClient
+    from cloud_anomaly.api import app
+
+    client = TestClient(app)
+    sample = ROOT / "examples" / "aws_cur_sample.csv"
+    with open(sample, "rb") as f:
+        r = client.post("/api/upload", files={"file": ("aws_cur_sample.csv", f, "text/csv")})
+    assert r.status_code == 200
+    s = r.json()
+    assert s["meta"]["scenario"] == "uploaded"
+    assert s["meta"]["n_services"] >= 1
+    assert SNAPSHOT_SECTIONS <= set(s.keys())
+    # No ground truth for real data → comparison degrades to zeros, not a crash.
+    assert s["ground_truth"] == []
+
+
+def test_ensemble_reuses_base_identically():
+    """The snapshot path derives the ensemble from precomputed base detectors;
+    output must match the standalone ensemble (no behavioural change)."""
+    import pandas as pd
+    from cloud_anomaly.detectors.ensemble import detect as ensemble_detect
+
+    cur, _, _ = generate(n_days=60, seed=4)
+    long = aggregate_by_service(cur)
+    base = {n: DETECTORS[n](long) for n in ("zscore", "stl", "iforest")}
+    standalone = DETECTORS["ensemble"](long).reset_index(drop=True)
+    from_base = ensemble_detect(long, base=base).reset_index(drop=True)
+    pd.testing.assert_frame_equal(standalone, from_base)

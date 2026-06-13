@@ -1,17 +1,23 @@
+import { useRef } from "react";
 import { NavLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Cloud } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Cloud, Upload, X } from "lucide-react";
 import { NAV } from "../nav";
-import { getScenarios } from "../lib/api";
+import { getScenarios, postUpload } from "../lib/api";
 import { useDashboardParams } from "../state/params";
 import { cn } from "../lib/utils";
 
 export function Sidebar() {
-  const { params, setParams } = useDashboardParams();
+  const { params, setParams, uploaded, uploadName, setUploaded } = useDashboardParams();
+  const fileRef = useRef<HTMLInputElement>(null);
   const { data: scenarios } = useQuery({
     queryKey: ["scenarios"],
     queryFn: getScenarios,
     staleTime: Infinity,
+  });
+  const upload = useMutation({
+    mutationFn: postUpload,
+    onSuccess: (snap, file) => setUploaded(snap, file.name),
   });
 
   return (
@@ -55,14 +61,61 @@ export function Sidebar() {
 
       <div className="space-y-3 border-t border-border px-3 py-3 text-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Configuration
+          Data source
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) upload.mutate(f);
+            e.target.value = "";
+          }}
+        />
+
+        {uploaded ? (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+              <Upload size={13} />
+              <span className="truncate">{uploadName ?? "uploaded CUR"}</span>
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              Real data — Detector comparison stays blank (no labels).
+            </div>
+            <button
+              onClick={() => setUploaded(null)}
+              className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <X size={12} /> Back to synthetic
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={upload.isPending}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+          >
+            <Upload size={13} />
+            {upload.isPending ? "Parsing…" : "Upload AWS CUR (.csv)"}
+          </button>
+        )}
+        {upload.isError && (
+          <div className="text-[11px] text-high">{String((upload.error as Error).message)}</div>
+        )}
+
+        <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Synthetic data
         </div>
         <label className="block">
           <span className="text-xs text-muted-foreground">Scenario</span>
           <select
             value={params.scenario}
+            disabled={!!uploaded}
             onChange={(e) => setParams({ scenario: e.target.value })}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50"
           >
             {(scenarios ?? [{ key: "default", description: "" }]).map((s) => (
               <option key={s.key} value={s.key}>
@@ -81,8 +134,9 @@ export function Sidebar() {
             max={180}
             step={15}
             value={params.nDays}
+            disabled={!!uploaded}
             onChange={(e) => setParams({ nDays: Number(e.target.value) })}
-            className="mt-1 w-full accent-[var(--color-primary)]"
+            className="mt-1 w-full accent-[var(--color-primary)] disabled:opacity-50"
           />
         </label>
         <label className="block">
@@ -91,8 +145,9 @@ export function Sidebar() {
             type="number"
             min={0}
             value={params.seed}
+            disabled={!!uploaded}
             onChange={(e) => setParams({ seed: Number(e.target.value) })}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50"
           />
         </label>
       </div>
