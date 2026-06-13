@@ -1258,12 +1258,22 @@ def main() -> None:
                 name="Daily cost", line=dict(color="#94A3B8", width=2),
             ))
             for _, ev in drift_df.iterrows():
-                drift_fig.add_vline(
-                    x=ev["change_date"],
-                    line=dict(color="#F59E0B" if ev["direction"] == "up" else "#3B82F6",
-                              dash="dash", width=2),
-                    annotation_text=f"{ev['service']} {ev['direction']} {ev['magnitude_pct']:.0f}%",
-                    annotation_position="top",
+                # Plotly's add_vline annotation path internally does sum([x, x]) starting
+                # from int 0 — fails on both Timestamps (pandas >= 2) and strings.
+                # Workaround: draw the line via add_shape and place the annotation
+                # separately so the buggy _mean() codepath is never hit.
+                x_val = pd.Timestamp(ev["change_date"]).strftime("%Y-%m-%d")
+                color = "#F59E0B" if ev["direction"] == "up" else "#3B82F6"
+                drift_fig.add_shape(
+                    type="line", xref="x", yref="paper",
+                    x0=x_val, x1=x_val, y0=0, y1=1,
+                    line=dict(color=color, dash="dash", width=2),
+                )
+                drift_fig.add_annotation(
+                    x=x_val, y=1.02, xref="x", yref="paper",
+                    showarrow=False,
+                    text=f"{ev['service']} {ev['direction']} {ev['magnitude_pct']:.0f}%",
+                    font=dict(size=10, color=color),
                 )
             drift_fig.update_layout(
                 title="Baseline drift events on the daily-total spend timeline",
