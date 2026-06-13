@@ -61,6 +61,31 @@ export function SectionTitle({
   );
 }
 
+export function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: "3d" | "2d";
+  onChange: (m: "3d" | "2d") => void;
+}) {
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border border-border text-xs">
+      {(["3d", "2d"] as const).map((m) => (
+        <button
+          key={m}
+          onClick={() => onChange(m)}
+          className={cn(
+            "px-2.5 py-1 font-medium transition-colors",
+            mode === m ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted",
+          )}
+        >
+          {m.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function KpiSkeleton() {
   return (
     <div className="flex flex-wrap gap-3">

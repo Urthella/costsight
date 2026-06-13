@@ -16,6 +16,13 @@ export default function ThreeD() {
     .map(([service, total]) => ({ service, total }))
     .sort((a, b) => b.total - a.total);
 
+  // Per-service alert counts shown in the skyline hover labels.
+  const alertCount: Record<string, number> = {};
+  for (const a of data.alerts) alertCount[a.service] = (alertCount[a.service] ?? 0) + 1;
+  const skylineInfo = Object.fromEntries(
+    Object.entries(alertCount).map(([k, v]) => [k, `${v} alerts`]),
+  );
+
   // Surface: services (y) × dates (x) → cost (z).
   const services = data.meta.services;
   const dates = [...new Set(data.series.map((s) => s.date))].sort();
@@ -39,7 +46,7 @@ export default function ThreeD() {
       <Card>
         <CardBody>
           <div className="mb-2 text-sm font-medium">Spend skyline (per-service total, auto-rotating)</div>
-          <SpendSkyline data={skyline} />
+          <SpendSkyline data={skyline} info={skylineInfo} />
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {skyline.map((b) => (
               <span key={b.service}>

@@ -1,26 +1,37 @@
+import { useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
-import { Card, CardBody, SectionTitle } from "../components/ui";
+import { Card, CardBody, SectionTitle, ModeToggle } from "../components/ui";
 import { DataTable } from "../components/DataTable";
 import Plot, { PLOT_CONFIG, PLOT_LAYOUT_BASE } from "../lib/plot";
+import { bars3dTrace, barLabels, scene3d, PLOT3D_LAYOUT, type Bar3D } from "../lib/threed";
 import { DETECTOR_COLOR, DETECTOR_LABEL } from "../lib/utils";
 
 const TYPES = ["point_spike", "level_shift", "gradual_drift"];
 
 export default function DetectorComparison() {
   const { data } = useSnapshot();
+  const [mode, setMode] = useState<"3d" | "2d">("3d");
   if (!data) return null;
 
   const hasTruth = data.comparison.some((c) => c.f1 > 0 || c.tp > 0 || c.fn > 0);
+  const dets = data.detectors;
 
-  const traces = data.detectors.map((det) => ({
-    x: TYPES,
-    y: TYPES.map((t) => {
-      const row = data.comparison.find(
-        (c) => c.detector === det && c.anomaly_type === t,
-      );
-      return row ? row.f1 : 0;
+  // 3D bars: anomaly_type (x) × detector (y) × F1 (height).
+  const bars: Bar3D[] = [];
+  const labels: string[] = [];
+  TYPES.forEach((t, xi) =>
+    dets.forEach((det, yi) => {
+      const row = data.comparison.find((c) => c.detector === det && c.anomaly_type === t);
+      const f1 = row ? row.f1 : 0;
+      bars.push({ x: xi, y: yi, h: f1, color: DETECTOR_COLOR[det] ?? "#1e40af" });
+      labels.push(`${DETECTOR_LABEL[det] ?? det} · ${t}: F1 ${f1.toFixed(3)}`);
     }),
+  );
+
+  const traces2d = dets.map((det) => ({
+    x: TYPES,
+    y: TYPES.map((t) => data.comparison.find((c) => c.detector === det && c.anomaly_type === t)?.f1 ?? 0),
     type: "bar",
     name: DETECTOR_LABEL[det] ?? det,
     marker: { color: DETECTOR_COLOR[det] ?? "#1e40af" },
@@ -31,7 +42,7 @@ export default function DetectorComparison() {
       <SectionTitle
         icon={BarChart3}
         title="Detector comparison"
-        subtitle="Precision / Recall / F1 per anomaly type — no single detector wins everywhere."
+        subtitle="F1 per anomaly type across detectors — no single detector wins everywhere. Drag the 3D chart to orbit."
       />
       {!hasTruth && (
         <div className="mb-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
@@ -40,19 +51,36 @@ export default function DetectorComparison() {
       )}
       <Card>
         <CardBody>
-          <Plot
-            data={traces}
-            layout={{
-              ...PLOT_LAYOUT_BASE,
-              height: 380,
-              barmode: "group",
-              yaxis: { title: "F1", range: [0, 1] },
-              xaxis: { title: "Anomaly type" },
-            }}
-            config={PLOT_CONFIG}
-            useResizeHandler
-            style={{ width: "100%" }}
-          />
+          <div className="mb-2 flex justify-end">
+            <ModeToggle mode={mode} onChange={setMode} />
+          </div>
+          {mode === "3d" ? (
+            <Plot
+              data={[bars3dTrace(bars), barLabels(bars, labels)]}
+              layout={{
+                ...PLOT3D_LAYOUT,
+                scene: scene3d(["point spike", "level shift", "gradual drift"], dets.map((d) => DETECTOR_LABEL[d] ?? d), "F1"),
+              }}
+              config={PLOT_CONFIG}
+              useResizeHandler
+              style={{ width: "100%" }}
+            />
+          ) : (
+            <Plot
+              data={traces2d}
+              layout={{
+                ...PLOT_LAYOUT_BASE,
+                height: 380,
+                barmode: "group",
+                yaxis: { title: "F1", range: [0, 1] },
+                xaxis: { title: "Anomaly type" },
+                showlegend: true,
+              }}
+              config={PLOT_CONFIG}
+              useResizeHandler
+              style={{ width: "100%" }}
+            />
+          )}
         </CardBody>
       </Card>
       <Card className="mt-4">

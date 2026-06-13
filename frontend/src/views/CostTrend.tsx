@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { LineChart as LineIcon } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
-import { Card, CardBody, SectionTitle } from "../components/ui";
+import { Card, CardBody, SectionTitle, ModeToggle } from "../components/ui";
 import Plot, { PLOT_CONFIG, PLOT_LAYOUT_BASE } from "../lib/plot";
+import { PLOT3D_LAYOUT } from "../lib/threed";
 import { DETECTOR_COLOR, DETECTOR_LABEL } from "../lib/utils";
 
 const SYMBOL: Record<string, string> = {
@@ -13,6 +15,7 @@ const SYMBOL: Record<string, string> = {
 
 export default function CostTrend() {
   const { data } = useSnapshot();
+  const [mode, setMode] = useState<"3d" | "2d">("3d");
   if (!data) return null;
 
   const dateToCost = new Map(data.daily.map((d) => [d.date, d.cost]));
@@ -83,6 +86,19 @@ export default function CostTrend() {
       name: svc,
     };
   });
+  // 3D "line forest": each service is a ribbon at its own depth (y).
+  const perService3d = services.map((svc, i) => {
+    const rows = data.series.filter((s) => s.service === svc);
+    return {
+      x: rows.map((r) => r.date),
+      y: rows.map(() => i),
+      z: rows.map((r) => r.cost),
+      type: "scatter3d",
+      mode: "lines",
+      name: svc,
+      line: { width: 5 },
+    };
+  });
 
   return (
     <div>
@@ -111,17 +127,41 @@ export default function CostTrend() {
 
       <SectionTitle
         title="Per-service breakdown"
-        subtitle="Where anomalies actually live — drift and level shifts are visible per service."
+        subtitle="Where anomalies actually live — drift and level shifts are visible per service. 3D 'line forest': each service is a ribbon at its own depth; drag to orbit."
       />
       <Card>
         <CardBody>
-          <Plot
-            data={perService}
-            layout={{ ...PLOT_LAYOUT_BASE, height: 420 }}
-            config={PLOT_CONFIG}
-            useResizeHandler
-            style={{ width: "100%" }}
-          />
+          <div className="mb-2 flex justify-end">
+            <ModeToggle mode={mode} onChange={setMode} />
+          </div>
+          {mode === "3d" ? (
+            <Plot
+              data={perService3d}
+              layout={{
+                ...PLOT3D_LAYOUT,
+                height: 460,
+                showlegend: true,
+                scene: {
+                  xaxis: { title: "Date" },
+                  yaxis: { tickvals: services.map((_, i) => i), ticktext: services, title: "" },
+                  zaxis: { title: "Cost ($)" },
+                  camera: { eye: { x: 1.8, y: 1.4, z: 0.9 } },
+                  aspectmode: "cube",
+                },
+              }}
+              config={PLOT_CONFIG}
+              useResizeHandler
+              style={{ width: "100%" }}
+            />
+          ) : (
+            <Plot
+              data={perService}
+              layout={{ ...PLOT_LAYOUT_BASE, height: 420 }}
+              config={PLOT_CONFIG}
+              useResizeHandler
+              style={{ width: "100%" }}
+            />
+          )}
         </CardBody>
       </Card>
     </div>
