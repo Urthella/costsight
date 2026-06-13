@@ -2,8 +2,8 @@
 
 Used by the dashboard to answer "if the trend continues, what does the
 next 14 days of spend look like, and which services are tracking to
-exceed their baseline?". Deliberately simple — same library family as
-the STL detector — so the project keeps a coherent modeling story.
+exceed their baseline?". Deliberately simple - same library family as
+the STL detector - so the project keeps a coherent modeling story.
 """
 from __future__ import annotations
 

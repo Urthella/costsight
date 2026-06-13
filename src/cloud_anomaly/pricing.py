@@ -1,4 +1,4 @@
-"""AWS Pricing lookup — used to ground the synthetic / forecast costs in
+"""AWS Pricing lookup - used to ground the synthetic / forecast costs in
 real on-demand prices.
 
 The Pricing List Bulk API is publicly accessible, no IAM auth needed:
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-# Curated snapshot — captured 2025-04-15 from the public Pricing List
+# Curated snapshot - captured 2025-04-15 from the public Pricing List
 # Bulk API. Costs are USD/hour for compute, USD/GB-month for storage.
 # These values are illustrative; the dashboard surfaces them with a
 # "AS OF 2025-04-15" disclaimer.
@@ -111,7 +111,7 @@ def estimated_monthly(service: str, region: str, sku: str, hours_per_month: floa
     rate = quotes[0].unit_price
     if "hour" in quotes[0].unit:
         return rate * hours_per_month
-    return rate  # storage / bytes — already monthly or per-event
+    return rate  # storage / bytes - already monthly or per-event
 
 
 def fetch_live(

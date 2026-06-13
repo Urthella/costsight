@@ -61,6 +61,7 @@ from cloud_anomaly.detectors.zscore import detect as zscore_detect_raw  # noqa: 
 from cloud_anomaly.detectors.stl import detect as stl_detect_raw  # noqa: E402
 from cloud_anomaly.detectors.iforest import detect as iforest_detect_raw  # noqa: E402
 from cloud_anomaly.preprocessing import aggregate_by_service, aggregate_daily, load_cur  # noqa: E402
+from cloud_anomaly.cur_loader import load_cur_frame  # noqa: E402
 from cloud_anomaly.synthetic_data import SCENARIOS, generate  # noqa: E402
 from cloud_anomaly.theoretical_scores import (  # noqa: E402
     INTERPRETABILITY_QUALITATIVE,
@@ -89,6 +90,50 @@ DETECTOR_STYLES = {
     "ensemble": {"color": "#10B981", "symbol": "star"},
 }
 
+# Sidebar navigation: 19 views grouped into 5 sections. Short ASCII keys are
+# the routing source of truth (active_view); labels carry Material Symbols
+# icons (rendered by Streamlit's :material/...: markdown directive) for a
+# consistent, non-emoji icon language across the chrome.
+NAV: dict[str, list[tuple[str, str]]] = {
+    "Overview": [
+        ("summary", ":material/dashboard: Summary"),
+        ("trend", ":material/show_chart: Cost trend"),
+        ("calendar", ":material/calendar_month: Calendar"),
+    ],
+    "Detection": [
+        ("alerts", ":material/notifications_active: Alert log"),
+        ("rootcause", ":material/search: Root-cause"),
+        ("comparison", ":material/bar_chart: Detector comparison"),
+        ("incidents", ":material/hub: Incidents"),
+        ("drift", ":material/waves: Drift"),
+    ],
+    "FinOps": [
+        ("forecast", ":material/query_stats: Forecast"),
+        ("budget", ":material/account_balance_wallet: Budget"),
+        ("reco", ":material/lightbulb: Recommendations"),
+        ("playbook", ":material/menu_book: Playbook"),
+    ],
+    "Sustainability": [
+        ("carbon", ":material/co2: Carbon"),
+        ("tagging", ":material/sell: Tagging"),
+    ],
+    "Lab & Data": [
+        ("ai", ":material/smart_toy: AI Explain"),
+        ("perf", ":material/bolt: Perf"),
+        ("lab", ":material/tune: Lab"),
+        ("replay", ":material/play_circle: Replay"),
+        ("raw", ":material/table_chart: Raw data"),
+    ],
+}
+CATEGORY_ICONS = {
+    "Overview": ":material/dashboard:",
+    "Detection": ":material/radar:",
+    "FinOps": ":material/savings:",
+    "Sustainability": ":material/eco:",
+    "Lab & Data": ":material/science:",
+}
+NAV_LABELS = {key: label for pages in NAV.values() for key, label in pages}
+
 
 @st.cache_data(show_spinner=False)
 def _load(regenerate: bool, n_days: int, seed: int, scenario: str = "default"):
@@ -100,6 +145,39 @@ def _load(regenerate: bool, n_days: int, seed: int, scenario: str = "default"):
     long = aggregate_by_service(cur_df)
     daily = aggregate_daily(cur_df)
     return cur_df, labels_df, long, daily
+
+
+@st.cache_data(show_spinner=False)
+def _load_uploaded(file_bytes: bytes):
+    """Parse an uploaded AWS CUR CSV into the same 4-tuple as ``_load``.
+
+    Real CUR exports carry no ground-truth labels, so ``labels_df`` comes
+    back empty (but correctly typed) - every evaluation view then degrades
+    to a 'no ground truth' state instead of crashing.
+    """
+    from io import BytesIO
+
+    raw = pd.read_csv(BytesIO(file_bytes))
+    cur_df = load_cur_frame(raw, source="uploaded CUR")
+    labels_df = pd.DataFrame(
+        {"date": pd.Series(dtype="datetime64[ns]"),
+         "service": pd.Series(dtype="object"),
+         "is_anomaly": pd.Series(dtype="bool"),
+         "anomaly_type": pd.Series(dtype="object")}
+    )
+    long = aggregate_by_service(cur_df)
+    daily = aggregate_daily(cur_df)
+    return cur_df, labels_df, long, daily
+
+
+@st.cache_data(show_spinner=False)
+def _carbon(cur_df: pd.DataFrame):
+    return carbon_footprint(cur_df)
+
+
+@st.cache_data(show_spinner=False)
+def _recs(cur_df: pd.DataFrame) -> pd.DataFrame:
+    return all_recommendations(cur_df)
 
 
 @st.cache_data(show_spinner=False)
@@ -193,20 +271,64 @@ def _union_alert_view(all_alerts: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    st.title("☁️ Automated Cloud Cost Anomaly Detector")
-    st.caption("Project 13 · Cloud Computing · Spring 2025–2026")
+    st.title(":material/cloud: Automated Cloud Cost Anomaly Detector")
+    st.caption("Project 13 · Cloud Computing · Spring 2025-2026")
+
+    # Tabular figures: digits share a fixed advance width so KPI numbers,
+    # prices and data columns stay aligned and don't jitter as values update.
+    st.markdown(
+        """
+        <style>
+          [data-testid="stAppViewContainer"], [data-testid="stMetricValue"] {
+              font-variant-numeric: tabular-nums;
+              font-feature-settings: "tnum";
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     with st.sidebar:
-        st.header("⚙️ Configuration")
-        regenerate = st.checkbox("Regenerate synthetic data", value=False)
+        st.header(":material/explore: Navigate")
+        nav_cat = st.radio(
+            "Section", list(NAV.keys()), key="nav_cat", label_visibility="collapsed",
+            format_func=lambda c: f"{CATEGORY_ICONS[c]} {c}",
+        )
+        active_view = st.radio(
+            "Page",
+            [key for key, _ in NAV[nav_cat]],
+            key="nav_page",
+            format_func=lambda k: NAV_LABELS[k],
+            label_visibility="collapsed",
+        )
+        st.markdown("---")
+        st.header(":material/settings: Configuration")
+        st.subheader("Data source")
+        uploaded = st.file_uploader(
+            "Upload your own AWS CUR (.csv)",
+            type=["csv"],
+            help=(
+                "Drop a real AWS Cost & Usage Report export. Columns such as "
+                "lineItem/UsageStartDate, lineItem/ProductCode and "
+                "lineItem/UnblendedCost are auto-detected. Leave empty to use "
+                "the synthetic generator below."
+            ),
+        )
+        using_upload = uploaded is not None
+        if using_upload:
+            st.success("Using your uploaded CUR. Synthetic controls disabled.")
+        regenerate = st.checkbox(
+            "Regenerate synthetic data", value=False, disabled=using_upload
+        )
         scenario = st.selectbox(
             "Scenario preset",
             options=list(SCENARIOS.keys()),
-            format_func=lambda s: f"{s} — {SCENARIOS[s]}"[:60] + ("…" if len(SCENARIOS[s]) > 32 else ""),
+            format_func=lambda s: f"{s} - {SCENARIOS[s]}"[:60] + ("…" if len(SCENARIOS[s]) > 32 else ""),
             help="Each preset biases the anomaly mix injected into the synthetic data.",
+            disabled=using_upload,
         )
-        n_days = st.slider("Days of history", 30, 180, 90, step=15)
-        seed = st.number_input("Random seed", min_value=0, value=42, step=1)
+        n_days = st.slider("Days of history", 30, 180, 90, step=15, disabled=using_upload)
+        seed = st.number_input("Random seed", min_value=0, value=42, step=1, disabled=using_upload)
         st.markdown("---")
         st.subheader("Detectors")
         active_detectors = st.multiselect(
@@ -229,7 +351,7 @@ def main() -> None:
         return
 
     # If the user changed any of (scenario, n_days, seed), force a regenerate
-    # even when the "Regenerate synthetic data" checkbox is off — otherwise
+    # even when the "Regenerate synthetic data" checkbox is off - otherwise
     # the dashboard silently keeps showing the cached parquet from the
     # previous scenario.
     new_signature = (int(n_days), int(seed), scenario)
@@ -237,13 +359,33 @@ def main() -> None:
     scenario_changed = last_signature is not None and last_signature != new_signature
     st.session_state["data_signature"] = new_signature
     effective_regenerate = regenerate or scenario_changed
-    if scenario_changed and not regenerate:
+    if scenario_changed and not regenerate and not using_upload:
         st.toast(
             f"Scenario / horizon / seed changed → regenerating dataset for "
             f"`{scenario}` ({n_days}d, seed={int(seed)}).",
             icon="🔄",
         )
-    cur_df, labels_df, long, daily = _load(effective_regenerate, n_days, int(seed), scenario)
+
+    if using_upload:
+        try:
+            cur_df, labels_df, long, daily = _load_uploaded(uploaded.getvalue())
+        except Exception as exc:  # noqa: BLE001 - surface any parse error to the user
+            st.error(f"Couldn't parse that CUR file: {exc}")
+            st.stop()
+        st.info(
+            f"📤 Showing **your uploaded CUR** - {long['date'].nunique()} days, "
+            f"{cur_df['service'].nunique()} services, ${cur_df['cost'].sum():,.0f} total. "
+            "Detection, alerts, attribution, forecast, carbon and recommendations are "
+            "fully live; **Detector comparison P/R/F1 is blank** because real billing "
+            "data ships no ground-truth anomaly labels."
+        )
+        if long["date"].nunique() < 14:
+            st.warning(
+                "Fewer than 14 days of history - Forecast and Drift tabs need more "
+                "data to be meaningful."
+            )
+    else:
+        cur_df, labels_df, long, daily = _load(effective_regenerate, n_days, int(seed), scenario)
     detectors_all = _run_detectors(long)
     detections_by_name = {k: detectors_all[k] for k in active_detectors}
 
@@ -288,13 +430,19 @@ def main() -> None:
         if primary_for_savings else {"saved": 0.0, "total_anomaly_cost": 0.0, "ratio": 0.0}
     )
 
+    total_flags = sum(per_detector_counts.values())
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Total spend", f"${total_spend:,.0f}")
     k2.metric("Services", n_services)
-    k3.metric("Anomalies (per detector)", counts_str if counts_str else "—")
+    # Big number = total flags across detectors; the per-detector split (which
+    # used to truncate as a single value string) lives in the tooltip.
+    k3.metric(
+        "Anomalies flagged", f"{total_flags:,}",
+        help=f"Per detector — {counts_str}" if counts_str else "No detectors active",
+    )
     k4.metric("Consensus alerts", n_consensus, help="Alerts flagged by ≥2 detectors (severity-filtered)")
     k5.metric(
-        f"$ savable (best: {DETECTOR_LABELS.get(primary_for_savings, '—').split(' ')[0]})",
+        f"$ savable (best: {DETECTOR_LABELS.get(primary_for_savings, '-').split(' ')[0]})",
         f"${saved_info['saved']:,.0f}",
         delta=f"{saved_info['ratio']*100:.0f}% of leak",
         help=(
@@ -303,22 +451,6 @@ def main() -> None:
             f"${saved_info['total_anomaly_cost']:,.0f}."
         ),
     )
-
-    tabs = st.tabs([
-        "📈 Cost trend", "🚨 Alert log", "🔎 Root-cause",
-        "📊 Detector comparison", "📅 Calendar", "📉 Forecast",
-        "💰 Budget", "📘 Playbook", "🧩 Incidents", "⚡ Perf",
-        "🌱 Carbon", "💡 Recommendations", "🏷️ Tagging",
-        "🤖 AI Explain", "🌊 Drift",
-        "🔬 Lab", "🎬 Replay", "🗂️ Raw data",
-    ])
-    (
-        tab1, tab2, tab3, tab4, tab5, tab6,
-        tab_budget, tab_playbook, tab_incidents, tab_perf,
-        tab_carbon, tab_reco, tab_tagging,
-        tab_ai, tab_drift,
-        tab7, tab8, tab9,
-    ) = tabs
 
     # Severity-filtered detection sets per detector, used for chart markers.
     flagged_dates_per_detector: dict[str, set] = {}
@@ -329,7 +461,93 @@ def main() -> None:
         kept = alerts_by_name[name][alerts_by_name[name]["severity"].isin(severity_filter)]
         flagged_dates_per_detector[name] = set(zip(kept["date"], kept["service"]))
 
-    with tab1:
+    if active_view == "summary":
+        st.subheader("Executive summary")
+        src_label = "your uploaded CUR" if using_upload else f"synthetic · {scenario}"
+        st.caption(f"Data source: **{src_label}** · {dataset_days} days · {n_services} services")
+
+        carbon_home = _carbon(cur_df)
+        recs_home = _recs(cur_df)
+        top_rec = recs_home.iloc[0] if not recs_home.empty else None
+
+        # De-duplicate to one row per (date, service): an anomaly flagged by
+        # three detectors is a single incident, not three.
+        if filtered_alerts.empty:
+            incidents = filtered_alerts
+        else:
+            incidents = (
+                filtered_alerts
+                .sort_values("severity_score", ascending=False)
+                .groupby(["date", "service"], as_index=False)
+                .agg(
+                    severity=("severity", "first"),
+                    severity_score=("severity_score", "max"),
+                    cost=("cost", "max"),
+                    detectors=("detector", "nunique"),
+                )
+                .sort_values("severity_score", ascending=False)
+            )
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric(
+            "Distinct anomalies", 0 if incidents.empty else len(incidents),
+            help="Unique (date, service) incidents across all active detectors.",
+        )
+        c2.metric(
+            "Carbon footprint", f"{carbon_home.kg_co2:,.0f} kgCO₂e",
+            delta=f"≈ {carbon_home.km_driven_equiv:,.0f} km driven", delta_color="off",
+        )
+        if top_rec is not None:
+            c3.metric(
+                "Top savings opportunity",
+                f"${top_rec['impact_usd_per_month']:,.0f}/mo",
+                delta=f"{top_rec['category']} · {top_rec['service']}", delta_color="off",
+            )
+        else:
+            c3.metric("Top savings opportunity", "-")
+
+        st.markdown("---")
+        cl, cr = st.columns([3, 2])
+        with cl:
+            st.markdown("**🔝 Highest-severity incidents**")
+            if incidents.empty:
+                st.info("No anomalies in the current severity filter.")
+            else:
+                top = incidents.head(8).copy()
+                top["date"] = pd.to_datetime(top["date"]).dt.strftime("%Y-%m-%d")
+                top["cost"] = top["cost"].map(lambda v: f"${v:,.0f}")
+                st.dataframe(
+                    top[["date", "service", "severity", "cost", "detectors"]]
+                        .rename(columns={"detectors": "# detectors"}),
+                    use_container_width=True, hide_index=True,
+                )
+        with cr:
+            st.markdown("**Severity mix**")
+            if incidents.empty:
+                st.caption("-")
+            else:
+                mix = (
+                    incidents["severity"].value_counts()
+                    .reindex(["HIGH", "MEDIUM", "LOW"]).fillna(0).astype(int)
+                )
+                donut = go.Figure(go.Pie(
+                    labels=list(mix.index), values=list(mix.values), hole=0.55,
+                    marker=dict(colors=["#EF4444", "#F59E0B", "#3B82F6"]),
+                ))
+                donut.update_layout(
+                    height=260, margin=dict(t=10, b=10, l=10, r=10), showlegend=True,
+                )
+                st.plotly_chart(donut, use_container_width=True)
+
+        if top_rec is not None:
+            st.markdown("---")
+            st.markdown("**💡 Recommended next action**")
+            st.success(
+                f"**{top_rec['action']}**\n\n"
+                f"_{top_rec['rationale']}_ (confidence: {top_rec['confidence']})"
+            )
+
+    if active_view == "trend":
         st.subheader("Daily total cloud spend")
         st.caption(
             "Green shading = ground-truth anomaly window. Markers = detector flags "
@@ -340,7 +558,7 @@ def main() -> None:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=daily["date"], y=daily["cost"], name="Daily cost",
-            mode="lines", line=dict(color="#94A3B8", width=2),
+            mode="lines", line=dict(color="#64748B", width=2),
         ))
         if show_truth and not labels_df.empty:
             truth_dates = labels_df.loc[labels_df["is_anomaly"], "date"].unique()
@@ -360,7 +578,7 @@ def main() -> None:
             fig.add_trace(go.Scatter(
                 x=day_view["date"], y=day_view["cost"],
                 mode="markers", name=DETECTOR_LABELS[name],
-                marker=dict(color=style["color"], size=11, symbol=style["symbol"], line=dict(width=1, color="white")),
+                marker=dict(color=style["color"], size=11, symbol=style["symbol"], line=dict(width=1, color="#1E293B")),
             ))
         fig.update_layout(
             xaxis_title="Date", yaxis_title="Cost ($)", height=420,
@@ -369,7 +587,7 @@ def main() -> None:
         st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("Per-service breakdown")
-        st.caption("This is where anomalies actually live — drift and level shifts are visible per service.")
+        st.caption("This is where anomalies actually live - drift and level shifts are visible per service.")
         per_service = px.line(
             long, x="date", y="cost", color="service", height=420,
         )
@@ -385,7 +603,7 @@ def main() -> None:
                 x=merged["date"], y=merged["cost"],
                 mode="markers", name=DETECTOR_LABELS[name],
                 marker=dict(color=style["color"], size=10, symbol=style["symbol"],
-                            line=dict(width=1, color="white")),
+                            line=dict(width=1, color="#1E293B")),
                 showlegend=True,
             ))
         per_service.update_layout(
@@ -393,7 +611,7 @@ def main() -> None:
         )
         st.plotly_chart(per_service, use_container_width=True)
 
-    with tab2:
+    if active_view == "alerts":
         st.subheader("Alerts (union across active detectors)")
         st.caption(
             "Each row is a (date, service) pair. `flagged_by` shows which detectors "
@@ -418,7 +636,7 @@ def main() -> None:
                 mime="text/csv",
             )
 
-            with st.expander("🔍 Why did each alert fire? — pick one"):
+            with st.expander("🔍 Why did each alert fire? - pick one"):
                 pick_options = [f"{r['date']} · {r['service']}" for _, r in display.iterrows()]
                 if pick_options:
                     pick = st.selectbox("Alert", options=pick_options, key="why_pick")
@@ -435,7 +653,7 @@ def main() -> None:
                         detector_msgs.get(d.strip(), d.strip()) for d in row["flagged_by"].split(",")
                     )
                     st.markdown(
-                        f"**{row['service']} on {row['date']}** — cost **${row['cost']:,.2f}**, "
+                        f"**{row['service']} on {row['date']}** - cost **${row['cost']:,.2f}**, "
                         f"severity **{row['severity']}** (score = {sev_score:.3f}).\n\n"
                         f"Flagged because: {reasons}.\n\n"
                         f"Severity blends detector deviation × duration of the flagged "
@@ -444,23 +662,23 @@ def main() -> None:
                     )
                     if row.get("n_detectors", 0) >= 2:
                         st.info(
-                            "🤝 **Multi-detector consensus** — see the *Playbook* tab "
+                            "🤝 **Multi-detector consensus** - see the *Playbook* tab "
                             "for the consensus-class recipe (page on-call, 30-min ack)."
                         )
                     else:
                         st.info(
-                            "📘 See the *Playbook* tab for the matching recipe — "
+                            "📘 See the *Playbook* tab for the matching recipe - "
                             "this looks like a **point spike**; the playbook lists the "
                             "CloudTrail / autoscaler checks to run."
                         )
 
-    with tab3:
+    if active_view == "rootcause":
         st.subheader("Root-cause attribution")
         st.caption(
             "For every flagged (date, service), we decompose the spend along "
             "region and usage_type and report the dimension that drove the "
             "increase the most vs. the 14-day rolling baseline. Computed per "
-            "active detector — switch detectors below to see how the hint shifts."
+            "active detector - switch detectors below to see how the hint shifts."
         )
         attr_detector = st.radio(
             "Attribution source",
@@ -492,7 +710,7 @@ def main() -> None:
                     mime="text/csv",
                 )
 
-    with tab4:
+    if active_view == "comparison":
         st.subheader("Precision / Recall by anomaly type")
         comparison = compare_detectors(detectors_all, labels_df)
         st.dataframe(
@@ -512,7 +730,7 @@ def main() -> None:
         st.plotly_chart(chart, use_container_width=True)
 
         st.markdown("---")
-        st.subheader("Theoretical vs. Empirical — pentagon comparison")
+        st.subheader("Theoretical vs. Empirical - pentagon comparison")
         st.caption(
             "Dashed = a-priori expectation from the proposal (textbook reasoning). "
             "Solid = measured: F1 from the 25-seed benchmark for the three anomaly "
@@ -559,10 +777,10 @@ def main() -> None:
 
         with st.expander("How to read the pentagon"):
             st.markdown(
-                "- **Point Spike / Level Shift / Gradual Drift** — F1 score on each "
+                "- **Point Spike / Level Shift / Gradual Drift** - F1 score on each "
                 "anomaly type. Empirical = mean of 25 seeds.\n"
-                "- **Speed** — inverse runtime, normalized so the fastest detector = 1.0.\n"
-                "- **Interpretability** — qualitative score (how easily a FinOps "
+                "- **Speed** - inverse runtime, normalized so the fastest detector = 1.0.\n"
+                "- **Interpretability** - qualitative score (how easily a FinOps "
                 "engineer can explain *why* a day was flagged).\n"
                 "- A solid pentagon **inside** the dashed line = we over-estimated "
                 "that detector. A solid pentagon **outside** the dashed line = it "
@@ -573,7 +791,7 @@ def main() -> None:
         st.subheader("Time-to-detect by anomaly type")
         st.caption(
             "How many days after an anomaly *starts* does each detector first flag "
-            "it? Lower is better. NaN = never detected within the window — those "
+            "it? Lower is better. NaN = never detected within the window - those "
             "are missed anomalies."
         )
         ttd_rows = []
@@ -608,10 +826,10 @@ def main() -> None:
             st.plotly_chart(ttd_chart, use_container_width=True)
             st.dataframe(ttd_summary, use_container_width=True, hide_index=True)
         else:
-            st.info("No TTD data — check that ground-truth labels are loaded.")
+            st.info("No TTD data - check that ground-truth labels are loaded.")
 
         st.markdown("---")
-        st.subheader("Statistical rigor — bootstrap CIs and pairwise significance")
+        st.subheader("Statistical rigor - bootstrap CIs and pairwise significance")
         st.caption(
             "Loaded from `outputs/benchmark_raw.csv` (the per-seed table from "
             "`scripts/run_benchmark.py`). Bootstrap = 2000 resamples, 95% CI. "
@@ -620,7 +838,7 @@ def main() -> None:
         bench_raw_path = ROOT / "outputs" / "benchmark_raw.csv"
         if not bench_raw_path.exists():
             st.info(
-                "No `outputs/benchmark_raw.csv` yet — run `python scripts/run_benchmark.py` "
+                "No `outputs/benchmark_raw.csv` yet - run `python scripts/run_benchmark.py` "
                 "to populate the per-seed table."
             )
         else:
@@ -639,7 +857,7 @@ def main() -> None:
             ci_df = pd.DataFrame(ci_rows)
             st.dataframe(ci_df, use_container_width=True, hide_index=True)
 
-            st.markdown("**Pairwise Wilcoxon (OVERALL F1) — is the difference significant?**")
+            st.markdown("**Pairwise Wilcoxon (OVERALL F1) - is the difference significant?**")
             sig_rows = []
             pairs = [("stl", "iforest"), ("stl", "zscore"), ("iforest", "zscore")]
             for a, b in pairs:
@@ -647,8 +865,8 @@ def main() -> None:
                 sig_rows.append({
                     "pair": f"{DETECTOR_LABELS[a].split(' ')[0]} vs {DETECTOR_LABELS[b].split(' ')[0]}",
                     "median F1 delta": round(res.get("median_delta", float("nan")), 4),
-                    "Wilcoxon W": round(res["statistic"], 2) if not pd.isna(res["statistic"]) else "—",
-                    "p-value": f"{res['p_value']:.2e}" if not pd.isna(res["p_value"]) else "—",
+                    "Wilcoxon W": round(res["statistic"], 2) if not pd.isna(res["statistic"]) else "-",
+                    "p-value": f"{res['p_value']:.2e}" if not pd.isna(res["p_value"]) else "-",
                     "n": res["n"],
                     "verdict": "significant (p<0.05)" if (
                         not pd.isna(res["p_value"]) and res["p_value"] < 0.05
@@ -657,7 +875,7 @@ def main() -> None:
             st.dataframe(pd.DataFrame(sig_rows), use_container_width=True, hide_index=True)
 
         st.markdown("---")
-        st.subheader("ROC — true-positive vs false-positive at every score threshold")
+        st.subheader("ROC - true-positive vs false-positive at every score threshold")
         st.caption(
             "We sweep each detector's score from low to high and plot the resulting "
             "TPR/FPR. The closer a curve hugs the top-left corner, the better the "
@@ -698,8 +916,8 @@ def main() -> None:
         )
         st.plotly_chart(roc_fig, use_container_width=True)
 
-    with tab5:
-        st.subheader("📅 Cost calendar heatmap")
+    if active_view == "calendar":
+        st.subheader(":material/calendar_month: Cost calendar heatmap")
         st.caption(
             "One cell per (service, day). Color intensity = daily cost. The white "
             "dots are days flagged by the active detectors (severity-filtered). "
@@ -733,7 +951,7 @@ def main() -> None:
                 x=xs, y=ys, mode="markers", name=DETECTOR_LABELS[name],
                 marker=dict(
                     color=style["color"], size=8, symbol=style["symbol"],
-                    line=dict(width=1, color="white"),
+                    line=dict(width=1, color="#1E293B"),
                 ),
             ))
         # Ground-truth overlay as small green diamond markers.
@@ -753,7 +971,7 @@ def main() -> None:
         )
         st.plotly_chart(heat, use_container_width=True)
 
-        st.markdown("**Daily total — calendar layout (week × weekday)**")
+        st.markdown("**Daily total - calendar layout (week × weekday)**")
         daily_view = daily.copy()
         daily_view["date"] = pd.to_datetime(daily_view["date"])
         daily_view["weekday"] = daily_view["date"].dt.day_name().str[:3]
@@ -773,8 +991,8 @@ def main() -> None:
         cal.update_layout(height=380, xaxis_title="Day of week", yaxis_title="ISO week")
         st.plotly_chart(cal, use_container_width=True)
 
-    with tab6:
-        st.subheader("📉 Holt-Winters forecast (next 14 days)")
+    if active_view == "forecast":
+        st.subheader(":material/query_stats: Holt-Winters forecast (next 14 days)")
         st.caption(
             "Per-service additive Holt-Winters with weekly seasonality. The shaded "
             "band is a 90% prediction interval from 200 simulated futures. The "
@@ -800,11 +1018,11 @@ def main() -> None:
                 color = palette[i % len(palette)]
                 fcast_fig.add_trace(go.Scatter(
                     x=hist["date"], y=hist["cost"], mode="lines",
-                    name=f"{svc} — history", line=dict(color=color, width=2),
+                    name=f"{svc} - history", line=dict(color=color, width=2),
                 ))
                 fcast_fig.add_trace(go.Scatter(
                     x=future["date"], y=future["cost"], mode="lines",
-                    name=f"{svc} — forecast",
+                    name=f"{svc} - forecast",
                     line=dict(color=color, dash="dash", width=2),
                 ))
                 fcast_fig.add_trace(go.Scatter(
@@ -813,7 +1031,7 @@ def main() -> None:
                     fill="toself", fillcolor=color, opacity=0.18,
                     line=dict(color="rgba(0,0,0,0)"),
                     showlegend=False, hoverinfo="skip",
-                    name=f"{svc} — 90% PI",
+                    name=f"{svc} - 90% PI",
                 ))
             fcast_fig.update_layout(
                 xaxis_title="Date", yaxis_title="Cost ($)", height=460,
@@ -840,8 +1058,8 @@ def main() -> None:
                     f"${proj.iloc[0]['projected_monthly']:,.0f}/mo",
                 )
 
-    with tab_budget:
-        st.subheader("💰 What-if budget tracker")
+    if active_view == "budget":
+        st.subheader(":material/account_balance_wallet: What-if budget tracker")
         st.caption(
             "Set a monthly cap; the dashboard projects when (and which "
             "service) will trip it given the current Holt-Winters forecast. "
@@ -918,26 +1136,26 @@ def main() -> None:
                 else:
                     st.write("Burn rate too low to estimate runway.")
 
-    with tab_playbook:
-        st.subheader("📘 Anomaly playbook")
+    if active_view == "playbook":
+        st.subheader(":material/menu_book: Anomaly playbook")
         st.caption(
             "When a detector fires, *what should the FinOps engineer do?* "
             "Each playbook entry is a deterministic recipe keyed off the "
-            "anomaly type — owner, SLA, and a numbered checklist."
+            "anomaly type - owner, SLA, and a numbered checklist."
         )
         for atype, book in PLAYBOOKS.items():
-            with st.expander(f"**{atype}** — {book['headline']}", expanded=(atype == "point_spike")):
+            with st.expander(f"**{atype}** - {book['headline']}", expanded=(atype == "point_spike")):
                 st.markdown(f"**Owner:** {book['owner']}")
                 st.markdown(f"**SLA:** {book['sla']}")
                 st.markdown("**Checks:**")
                 st.markdown(book["checks"])
 
         st.markdown("---")
-        st.subheader("📨 Send a sample alert (webhook test)")
+        st.subheader(":material/send: Send a sample alert (webhook test)")
         st.caption(
             "Posts the highest-severity alert as a Slack-shaped JSON payload "
             "to the URL you provide. Use a private webhook (or "
-            "https://webhook.site/) — the dashboard does NOT keep the URL."
+            "https://webhook.site/) - the dashboard does NOT keep the URL."
         )
         if filtered_alerts.empty:
             st.info("No alerts to send right now.")
@@ -951,7 +1169,7 @@ def main() -> None:
                 )["headline"],
             )
             st.code(json.dumps(payload.to_slack_block(), indent=2), language="json")
-            url = st.text_input("Webhook URL (optional — leave blank to dry-run)", value="")
+            url = st.text_input("Webhook URL (optional - leave blank to dry-run)", value="")
             if st.button("Send alert"):
                 if not url:
                     st.warning("Dry-run: payload above is what would be sent.")
@@ -963,8 +1181,8 @@ def main() -> None:
                     else:
                         st.error(f"Failed · {result}")
 
-    with tab_incidents:
-        st.subheader("🧩 Alert clustering — turn rows into incidents")
+    if active_view == "incidents":
+        st.subheader(":material/hub: Alert clustering - turn rows into incidents")
         st.caption(
             "DBSCAN over (day, service, severity, detector) groups close-in-time "
             "alerts into incidents. The default DBSCAN density radius (eps) is "
@@ -1004,11 +1222,11 @@ def main() -> None:
                 )
                 st.plotly_chart(inc_chart, use_container_width=True)
 
-    with tab_perf:
-        st.subheader("⚡ Detector performance — measured runtime")
+    if active_view == "perf":
+        st.subheader(":material/bolt: Detector performance - measured runtime")
         st.caption(
             "Median of 3 runs per (detector, dataset_size) combination. Used "
-            "for production-deploy sizing — see REPORT § 4.1 *Cloud architecture* "
+            "for production-deploy sizing - see REPORT § 4.1 *Cloud architecture* "
             "for how this maps to ECS Fargate vCPU choices."
         )
         if st.button("Run performance grid (4 sizes × 4 detectors)"):
@@ -1036,15 +1254,15 @@ def main() -> None:
             )
             st.plotly_chart(throughput, use_container_width=True)
 
-    with tab_carbon:
-        st.subheader("🌱 Carbon footprint of cloud spend")
+    if active_view == "carbon":
+        st.subheader(":material/co2: Carbon footprint of cloud spend")
         st.caption(
             f"USD spend × per-service energy intensity (kWh/$) × per-region "
             f"grid carbon intensity (kgCO₂/kWh). Methodology snapshot from "
-            f"{CARBON_SNAPSHOT_DATE} — AWS Customer Carbon Footprint Tool + "
+            f"{CARBON_SNAPSHOT_DATE} - AWS Customer Carbon Footprint Tool + "
             f"national grid mix data (eGRID, ENTSO-E)."
         )
-        carbon = carbon_footprint(cur_df)
+        carbon = _carbon(cur_df)
         cc1, cc2, cc3, cc4 = st.columns(4)
         cc1.metric("Total cost", f"${carbon.cost_usd:,.0f}")
         cc2.metric("kgCO₂-eq emitted", f"{carbon.kg_co2:,.0f}")
@@ -1073,13 +1291,13 @@ def main() -> None:
                 hint = greener_region_recommendation(r)
                 if hint["to_region"] != hint["from_region"]:
                     st.write(
-                        f"🌿 `{hint['from_region']}` → `{hint['to_region']}` — "
+                        f"🌿 `{hint['from_region']}` → `{hint['to_region']}` - "
                         f"**{hint['improvement_pct']}%** cleaner grid "
                         f"({hint['current_kg_per_kwh']} → {hint['proposed_kg_per_kwh']} kgCO₂/kWh)"
                     )
 
         st.markdown("---")
-        st.subheader("Anomaly carbon — what each alert *also* cost in CO₂")
+        st.subheader("Anomaly carbon - what each alert *also* cost in CO₂")
         if filtered_alerts.empty:
             st.info("No alerts in the current filter → no anomaly-level carbon to attribute.")
         else:
@@ -1096,17 +1314,17 @@ def main() -> None:
                     f"This is the ESG dimension of every dollar leaked to a cost spike."
                 )
 
-    with tab_reco:
-        st.subheader("💡 Cost-optimization recommendations")
+    if active_view == "reco":
+        st.subheader(":material/lightbulb: Cost-optimization recommendations")
         st.caption(
             "Independent of any active anomaly: where could this account save "
             "money *today*? Heuristics scan the CUR for the four most common "
             "FinOps wins. Confidence is high/medium/low; we surface rationale "
             "so reviewers can audit every finding."
         )
-        recs = all_recommendations(cur_df)
+        recs = _recs(cur_df)
         if recs.empty:
-            st.info("No optimization candidates found — workload is already pretty tight.")
+            st.info("No optimization candidates found - workload is already pretty tight.")
         else:
             total_savings = float(recs["impact_usd_per_month"].sum())
             r1, r2, r3 = st.columns(3)
@@ -1114,13 +1332,24 @@ def main() -> None:
             r2.metric("Total monthly savings", f"${total_savings:,.0f}")
             r3.metric("Annualized", f"${total_savings*12:,.0f}")
 
-            cat_chart = px.bar(
-                recs.groupby("category", as_index=False)["impact_usd_per_month"].sum(),
-                x="category", y="impact_usd_per_month",
-                color="category", title="Monthly savings by category",
-                height=320,
+            cat_summary = (
+                recs.groupby("category", as_index=False)["impact_usd_per_month"]
+                .sum()
+                .sort_values("impact_usd_per_month")
             )
-            st.plotly_chart(cat_chart, use_container_width=True)
+            # A bar chart only earns its space with ≥2 categories; with one
+            # finding the metrics above + the per-finding cards below say it all
+            # (skill rule: <4 data points → prefer stat cards over a chart).
+            if len(cat_summary) >= 2:
+                cat_chart = px.bar(
+                    cat_summary, x="impact_usd_per_month", y="category",
+                    orientation="h", color="category", height=320,
+                )
+                cat_chart.update_layout(
+                    showlegend=False, xaxis_title="$ / month", yaxis_title="",
+                    title="Monthly savings by category",
+                )
+                st.plotly_chart(cat_chart, use_container_width=True)
 
             for _, row in recs.iterrows():
                 conf_icon = {"high": "🟢", "medium": "🟡", "low": "🟠"}.get(row["confidence"], "⚪")
@@ -1133,8 +1362,8 @@ def main() -> None:
                     st.markdown(f"**Action:** {row['action']}")
                     st.markdown(f"**Rationale:** {row['rationale']}")
 
-    with tab_tagging:
-        st.subheader("🏷️ Tag governance — quantify and fix tag debt")
+    if active_view == "tagging":
+        st.subheader(":material/sell: Tag governance - quantify and fix tag debt")
         st.caption(
             "Untagged spend has no owner → no chargeback → no incentive to "
             "optimize. This view reports tag coverage, the dollar debt of "
@@ -1162,12 +1391,17 @@ def main() -> None:
             st.markdown("**Coverage**")
             cov = report.coverage.copy()
             cov["covered_pct"] = cov["covered_pct"].astype(float)
-            cov_chart = px.bar(
-                cov, x="tag", y="covered_pct",
-                color="covered_pct", color_continuous_scale="RdYlGn",
-                range_y=[0, 100], title="Tag coverage (%)", height=300,
-            )
-            st.plotly_chart(cov_chart, use_container_width=True)
+            # Two or three tags → stat cards read far better than a continuous
+            # color-scaled bar whose values all cluster near 100% (skill rule:
+            # <4 data points → stat card). Untagged $ shown as an inverse delta.
+            cov_cols = st.columns(len(cov))
+            for col, (_, row) in zip(cov_cols, cov.iterrows()):
+                untagged = float(row.get("untagged_usd", 0.0) or 0.0)
+                col.metric(
+                    row["tag"], f"{row['covered_pct']:.0f}% covered",
+                    delta=(f"-${untagged:,.0f} untagged" if untagged else "fully tagged"),
+                    delta_color=("inverse" if untagged else "off"),
+                )
             st.dataframe(cov, use_container_width=True, hide_index=True)
 
             if not report.worst_services.empty:
@@ -1179,21 +1413,21 @@ def main() -> None:
                 st.code(report.policy_yaml, language="yaml")
                 st.caption(
                     "Save as `required-tags.yaml` and apply via AWS Config "
-                    "or an SCP at the Organizations root — every new deploy "
+                    "or an SCP at the Organizations root - every new deploy "
                     "without the required tags is then a compliance violation."
                 )
 
-    with tab_ai:
-        st.subheader("🤖 AI-powered root-cause explanation")
+    if active_view == "ai":
+        st.subheader(":material/smart_toy: AI-powered root-cause explanation")
         has_key = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
         if has_key:
             st.success(
-                "✅ ANTHROPIC_API_KEY is set — using the live Claude API "
+                "✅ ANTHROPIC_API_KEY is set - using the live Claude API "
                 "(model = claude-haiku-4-5, max 400 tokens, cached per alert)."
             )
         else:
             st.info(
-                "ℹ️ No ANTHROPIC_API_KEY in env — falling back to the deterministic "
+                "ℹ️ No ANTHROPIC_API_KEY in env - falling back to the deterministic "
                 "template explainer. Set the env var before launching Streamlit to "
                 "get live AI explanations: `setx ANTHROPIC_API_KEY sk-…`."
             )
@@ -1226,8 +1460,8 @@ def main() -> None:
                         f"{exp.input_tokens}/{exp.output_tokens}",
                     )
 
-    with tab_drift:
-        st.subheader("🌊 Concept drift — has the *baseline* itself shifted?")
+    if active_view == "drift":
+        st.subheader(":material/waves: Concept drift - has the *baseline* itself shifted?")
         st.caption(
             "Detectors assume a stable baseline. When the normal level *itself* "
             "drifts, detector thresholds should be recalibrated. Page-Hinkley "
@@ -1237,7 +1471,7 @@ def main() -> None:
         with st.spinner("Running drift detectors…"):
             drift_df = detect_drift(long)
         if drift_df.empty:
-            st.success("No baseline drift detected — workload is in a stable regime.")
+            st.success("No baseline drift detected - workload is in a stable regime.")
         else:
             dc1, dc2, dc3 = st.columns(3)
             dc1.metric("Drift events", len(drift_df))
@@ -1255,11 +1489,11 @@ def main() -> None:
             drift_fig = go.Figure()
             drift_fig.add_trace(go.Scatter(
                 x=daily["date"], y=daily["cost"], mode="lines",
-                name="Daily cost", line=dict(color="#94A3B8", width=2),
+                name="Daily cost", line=dict(color="#64748B", width=2),
             ))
             for _, ev in drift_df.iterrows():
                 # Plotly's add_vline annotation path internally does sum([x, x]) starting
-                # from int 0 — fails on both Timestamps (pandas >= 2) and strings.
+                # from int 0 - fails on both Timestamps (pandas >= 2) and strings.
                 # Workaround: draw the line via add_shape and place the annotation
                 # separately so the buggy _mean() codepath is never hit.
                 x_val = pd.Timestamp(ev["change_date"]).strftime("%Y-%m-%d")
@@ -1287,16 +1521,16 @@ def main() -> None:
                     "(e.g. an autoscaling cap raise that didn't get reverted).\n"
                     "- **Blue dashed line** = baseline shifted *downward* "
                     "(e.g. a successful rightsizing).\n"
-                    "- Drift events are *not* anomalies — they're shifts in "
+                    "- Drift events are *not* anomalies - they're shifts in "
                     "the normal level. If a detector keeps firing after a "
                     "drift event, its rolling window may need to be shortened, "
                     "or its threshold raised."
                 )
 
-    with tab7:
-        st.subheader("🔬 Threshold sensitivity playground")
+    if active_view == "lab":
+        st.subheader(":material/tune: Threshold sensitivity playground")
         st.caption(
-            "Move the sliders below — each detector re-runs in real time on the "
+            "Move the sliders below - each detector re-runs in real time on the "
             "current dataset and the P/R/F1 table updates live. The defaults match "
             "the values used in the 25-seed benchmark."
         )
@@ -1343,11 +1577,11 @@ def main() -> None:
                 "comparison* to see how sensitive each detector is to its tuning."
             )
 
-    with tab8:
-        st.subheader("🎬 Day-by-day replay")
+    if active_view == "replay":
+        st.subheader(":material/play_circle: Day-by-day replay")
         st.caption(
             "Walks through the 90-day dataset one day at a time. Anomalies appear "
-            "as they would in real-life monitoring — useful for showing reviewers "
+            "as they would in real-life monitoring - useful for showing reviewers "
             "the 'catch in hours not weeks' story."
         )
         replay_detector = st.selectbox(
@@ -1385,15 +1619,15 @@ def main() -> None:
                         go.Scatter(
                             x=line_view["date"], y=line_view["cost"],
                             mode="lines+markers",
-                            line=dict(color="#94A3B8", width=2),
-                            marker=dict(size=4, color="#94A3B8"),
+                            line=dict(color="#64748B", width=2),
+                            marker=dict(size=4, color="#64748B"),
                             name="Daily cost",
                         ),
                         go.Scatter(
                             x=anom_costs["date"], y=anom_costs["cost"],
                             mode="markers",
-                            marker=dict(color=color, size=14, symbol="x", line=dict(width=2, color="white")),
-                            name=f"Anomalies — {DETECTOR_LABELS[replay_detector]}",
+                            marker=dict(color=color, size=14, symbol="x", line=dict(width=2, color="#1E293B")),
+                            name=f"Anomalies - {DETECTOR_LABELS[replay_detector]}",
                         ),
                     ],
                 ))
@@ -1412,7 +1646,7 @@ def main() -> None:
                 for f in frames
             ]
             replay_fig.update_layout(
-                title=f"Replay — {DETECTOR_LABELS[replay_detector]}",
+                title=f"Replay - {DETECTOR_LABELS[replay_detector]}",
                 xaxis=dict(title="Date", range=x_range),
                 yaxis=dict(title="Cost ($)", range=[0, y_max]),
                 height=480,
@@ -1442,11 +1676,11 @@ def main() -> None:
             st.plotly_chart(replay_fig, use_container_width=True)
             st.caption(
                 "Tip: hit ▶ Play, or drag the slider. The grey line grows day by day; "
-                "red ✕ markers persist as anomalies are caught — each one would have "
+                "red ✕ markers persist as anomalies are caught - each one would have "
                 "paged FinOps in real life."
             )
 
-    with tab9:
+    if active_view == "raw":
         st.subheader("Synthetic CUR rows (sample)")
         st.dataframe(cur_df.head(200), use_container_width=True, hide_index=True)
         st.subheader("Ground-truth labels")

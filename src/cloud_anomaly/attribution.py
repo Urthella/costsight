@@ -9,7 +9,7 @@ Output schema:
     top_dimension, top_value, top_value_share, top_value_delta, summary
 
 The ``summary`` column is a short human-readable string that the
-dashboard surfaces directly — e.g.
+dashboard surfaces directly - e.g.
 
     "EC2 spend on 2025-03-19 is $1,247 (+312% vs 14-day baseline);
      us-east-1 region drove 72% of the increase."

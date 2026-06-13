@@ -7,13 +7,13 @@ Docker (preferred for cloud deploys):
     docker compose up api
 
 Endpoints:
-    GET  /health           — liveness probe
-    GET  /                 — service metadata
-    POST /generate         — produce a fresh synthetic dataset
-    POST /detect           — run a single detector on supplied long-format JSON
-    POST /alerts           — convenience wrapper: detect + build_alerts + attribute
-    GET  /metrics          — multi-detector P/R/F1 against the ground truth in raw_dir
-    GET  /forecast         — Holt-Winters per-service forecast for the next N days
+    GET  /health           - liveness probe
+    GET  /                 - service metadata
+    POST /generate         - produce a fresh synthetic dataset
+    POST /detect           - run a single detector on supplied long-format JSON
+    POST /alerts           - convenience wrapper: detect + build_alerts + attribute
+    GET  /metrics          - multi-detector P/R/F1 against the ground truth in raw_dir
+    GET  /forecast         - Holt-Winters per-service forecast for the next N days
 """
 from __future__ import annotations
 
@@ -144,7 +144,7 @@ def http_alerts(req: DetectRequest) -> dict[str, Any]:
                           dataset_days=int(long["date"].nunique()))
     if alerts.empty:
         return {"detector": req.detector, "n_alerts": 0, "alerts": []}
-    cur_df = long.assign(region="—", usage_type="—")[
+    cur_df = long.assign(region="-", usage_type="-")[
         ["date", "service", "region", "usage_type", "cost"]
     ]
     attribution_df = attribute(cur_df, alerts)

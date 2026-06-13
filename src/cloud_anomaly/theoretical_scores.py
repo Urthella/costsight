@@ -3,7 +3,7 @@
 These are the qualitative scores we predicted before measuring anything,
 based on textbook reasoning about each algorithm. They live next to the
 empirical numbers so the dashboard can show "what we expected" vs.
-"what we measured" side-by-side — the central narrative of Project 13.
+"what we measured" side-by-side - the central narrative of Project 13.
 
 All values are normalized to [0, 1]. Higher is better for every axis,
 including Speed and Interpretability.

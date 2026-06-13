@@ -1,6 +1,6 @@
 """Precision / Recall evaluation against the synthetic ground-truth labels.
 
-Provides both an overall report and a per-anomaly-type breakdown — the latter
+Provides both an overall report and a per-anomaly-type breakdown - the latter
 is the central research output of the project (Phase 2).
 """
 from __future__ import annotations
@@ -58,7 +58,7 @@ def evaluate(detections: pd.DataFrame, labels: pd.DataFrame) -> Metrics:
 
 
 def evaluate_by_type(detections: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
-    """Per-anomaly-type Precision/Recall — the headline result table."""
+    """Per-anomaly-type Precision/Recall - the headline result table."""
     pred_df = detections[["date", "service", "is_anomaly"]].rename(
         columns={"is_anomaly": "_pred"}
     )

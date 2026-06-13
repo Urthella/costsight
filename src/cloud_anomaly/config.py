@@ -21,7 +21,7 @@ SERVICES = [
 
 # (service) → (tag_team, tag_environment).
 # Mirrors a typical org where backend services live in prod and analytics
-# services live in staging — gives the attribution layer something to
+# services live in staging - gives the attribution layer something to
 # pivot on beyond region / usage_type.
 SERVICE_TAGS: dict[str, tuple[str, str]] = {
     "EC2":        ("backend",   "prod"),

@@ -12,6 +12,15 @@ venv/
 .vscode/
 *.log
 
+# local agent settings
+.claude/
+
+# node / react frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+
 # data artifacts
 data/raw/*.csv
 data/raw/*.parquet

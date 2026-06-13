@@ -1,9 +1,9 @@
 """Console scripts wired through pyproject.toml's [project.scripts].
 
 After `pip install costsight`, these become available as shell commands:
-  costsight-pipeline   — single run, writes outputs/
-  costsight-benchmark  — multi-seed Monte Carlo
-  costsight-api        — serve the FastAPI app via uvicorn
+  costsight-pipeline   - single run, writes outputs/
+  costsight-benchmark  - multi-seed Monte Carlo
+  costsight-api        - serve the FastAPI app via uvicorn
 """
 from __future__ import annotations
 

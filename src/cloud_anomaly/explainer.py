@@ -8,7 +8,7 @@ hint ("us-east-1 region drove 100% of the increase"); this layer is the
 
 API key handling:
   * Reads ANTHROPIC_API_KEY from the environment.
-  * If absent, the module still works — it returns a *templated*
+  * If absent, the module still works - it returns a *templated*
     explanation produced from the same input, so the dashboard never
     breaks on a missing key. The template version is clearly labeled
     so reviewers can tell which mode produced the text.
@@ -89,7 +89,7 @@ def _template_explanation(
         f"(severity={severity}). {summary} The dominant contributor was "
         f"`{top_dim}={top_val}`.{cur_summary}\n\n"
         f"Most likely cause: a sudden change in load or configuration "
-        f"affecting that {top_dim} — for example, an autoscaling rule "
+        f"affecting that {top_dim} - for example, an autoscaling rule "
         f"raising capacity, a deploy doubling resource footprint, or a "
         f"misbehaving consumer driving abnormal API call volume. Cross-"
         f"reference CloudTrail entries for `{service}` in the 24 hours "
@@ -156,7 +156,7 @@ def explain_alert(
     Args:
         alert: a row from build_alerts (or equivalent dict).
         attribution: matching row from attribute(...), or its dict form.
-        cur_df: full CUR — used to extract the 7-day trailing window.
+        cur_df: full CUR - used to extract the 7-day trailing window.
         model: Anthropic model id. Defaults to claude-haiku-4-5.
         force_template: skip the API even if the key is set (testing).
     """

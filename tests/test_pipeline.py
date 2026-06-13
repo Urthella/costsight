@@ -119,6 +119,22 @@ def test_real_cur_loader():
     assert apr3_ec2 > 900
 
 
+def test_load_cur_frame_matches_csv():
+    """load_cur_frame (used by the dashboard upload widget) must produce the
+    same long-format result as load_cur_csv, and reject malformed frames."""
+    import pytest
+    from cloud_anomaly.cur_loader import load_cur_csv, load_cur_frame
+
+    sample = ROOT / "examples" / "aws_cur_sample.csv"
+    raw = pd.read_csv(sample)
+    from_frame = load_cur_frame(raw)
+    from_path = load_cur_csv(sample)
+    pd.testing.assert_frame_equal(from_frame, from_path)
+
+    with pytest.raises(ValueError):
+        load_cur_frame(pd.DataFrame({"not": [1], "a": [2], "cur": [3]}))
+
+
 def test_carbon_and_recommender_and_tagging():
     from cloud_anomaly.carbon import (
         carbon_for_row,
@@ -131,7 +147,7 @@ def test_carbon_and_recommender_and_tagging():
 
     cur, _, _ = generate(n_days=60, seed=11)
 
-    # Carbon — sanity check ordering and totals.
+    # Carbon - sanity check ordering and totals.
     kg_us_east = carbon_for_row("EC2", "us-east-1", 1000.0)
     kg_eu_west_3 = carbon_for_row("EC2", "eu-west-3", 1000.0)
     assert kg_eu_west_3 < kg_us_east  # France nuclear << US east mix
@@ -145,17 +161,17 @@ def test_carbon_and_recommender_and_tagging():
     hint = greener_region_recommendation("us-east-1")
     assert hint["improvement_pct"] >= 0
 
-    # Recommender — at least one finding for default workload.
+    # Recommender - at least one finding for default workload.
     recs = all_recommendations(cur)
     assert {"category", "service", "impact_usd_per_month"} <= set(recs.columns)
     assert (recs["impact_usd_per_month"] >= 0).all()
 
-    # Tagging — synthetic CUR ships with tags so debt should be 0.
+    # Tagging - synthetic CUR ships with tags so debt should be 0.
     report = evaluate_tagging(cur)
     assert (report.coverage["covered_pct"] == 100).all()
     assert report.debt_usd == 0
 
-    # Anomaly carbon — needs alerts; build a tiny one.
+    # Anomaly carbon - needs alerts; build a tiny one.
     long = aggregate_by_service(cur)
     detections = DETECTORS["stl"](long)
     alerts = build_alerts(detections, detector_name="stl", dataset_days=60)
@@ -184,7 +200,7 @@ def test_drift_and_explainer():
         "detector", "confidence",
     } <= set(drift_df.columns)
 
-    # Explainer — force template mode (no API key) and check we get text.
+    # Explainer - force template mode (no API key) and check we get text.
     clear_cache()
     alert_row = {
         "date": pd.Timestamp("2025-03-15"),

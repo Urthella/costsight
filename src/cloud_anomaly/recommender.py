@@ -1,7 +1,7 @@
-"""Cost-optimization recommender — turns observations into actionable savings.
+"""Cost-optimization recommender - turns observations into actionable savings.
 
 Where the anomaly detector answers *"what happened?"*, this module
-answers *"what should we do about it?"* — independently of any active
+answers *"what should we do about it?"* - independently of any active
 anomaly. It scans the CUR for the four most common FinOps wins:
 
   1. Reserved Instance / Savings Plan candidates (sustained compute).
@@ -74,7 +74,7 @@ def reserved_instance_candidates(cur_df: pd.DataFrame) -> list[Recommendation]:
             confidence="high" if std / mean < 0.10 else "medium",
             action=f"Purchase a 1-yr no-upfront Savings Plan for {svc} in {region} "
                    f"covering ~${mean*24:.0f}/day baseline.",
-            rationale=f"Daily spend std/mean = {std/mean:.0%} over the window — "
+            rationale=f"Daily spend std/mean = {std/mean:.0%} over the window - "
                       f"low-volatility, sustained workload typical of RI/SP candidates.",
         ))
     return sorted(findings, key=lambda r: -r.impact_usd_per_month)
@@ -113,7 +113,7 @@ def idle_storage_candidates(cur_df: pd.DataFrame) -> list[Recommendation]:
                        f"volumes (DescribeVolumes filter=Attachment.Status:detached) "
                        f"and delete after a 7-day tag-confirm window.",
                 rationale=f"EBS spend in {row['region']} without matching EC2/RDS "
-                          f"spend — strong signal that volumes are detached.",
+                          f"spend - strong signal that volumes are detached.",
             ))
 
     # S3 spend that hasn't changed across the window → tier candidate.
@@ -132,7 +132,7 @@ def idle_storage_candidates(cur_df: pd.DataFrame) -> list[Recommendation]:
                 action=f"Add an S3 lifecycle policy in {region}: transition objects "
                        f"older than 30 days to S3 Infrequent Access (~46% cheaper).",
                 rationale=f"S3 spend in {region} has been flat (std/mean = {flatness:.1%}) "
-                          f"over the window — objects are likely cold-stored at Standard tier.",
+                          f"over the window - objects are likely cold-stored at Standard tier.",
             ))
     return sorted(findings, key=lambda r: -r.impact_usd_per_month)
 
@@ -156,7 +156,7 @@ def untagged_spend(cur_df: pd.DataFrame) -> list[Recommendation]:
         action="Enforce a deploy-time tagging policy (AWS Organizations SCP or "
                "Config Rule); back-fill historical resources via Resource Groups Tagging API.",
         rationale=f"${untagged['cost'].sum():,.0f} of spend over the window has no "
-                  f"tag_team — that money has no owner and can't be charged-back.",
+                  f"tag_team - that money has no owner and can't be charged-back.",
     )]
 
 

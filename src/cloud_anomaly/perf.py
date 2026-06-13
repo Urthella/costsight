@@ -1,4 +1,4 @@
-"""Detector runtime benchmarks — measured, not estimated.
+"""Detector runtime benchmarks - measured, not estimated.
 
 The Cloud architecture diagram (REPORT § 4.1) prescribes ECS Fargate
 for the detection pass; rightsizing that container needs an honest

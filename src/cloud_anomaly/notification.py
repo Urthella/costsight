@@ -5,7 +5,7 @@ endpoints. Keeping the *payload shape* identical to that flow means the
 dashboard's "send sample alert" button doubles as documentation for
 the production integration.
 
-No live HTTP is made here unless an explicit webhook URL is supplied —
+No live HTTP is made here unless an explicit webhook URL is supplied -
 the dashboard exposes that field; tests stub it out.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ class AlertPayload:
     runbook: str
 
     def to_slack_block(self) -> dict[str, Any]:
-        """Slack Block Kit message — survives copy-paste into Slack's UI."""
+        """Slack Block Kit message - survives copy-paste into Slack's UI."""
         return {
             "blocks": [
                 {
@@ -70,7 +70,7 @@ class AlertPayload:
         )
 
     def to_sns(self) -> dict[str, str]:
-        """SNS Publish payload — maps cleanly to ``boto3.client('sns').publish(**…)``."""
+        """SNS Publish payload - maps cleanly to ``boto3.client('sns').publish(**…)``."""
         return {
             "Subject": f"[{self.severity}] {self.title}"[:99],
             "Message": json.dumps({
@@ -117,7 +117,7 @@ def send_webhook(payload: AlertPayload, url: str, *, timeout: float = 5.0) -> di
 
     Uses ``httpx`` (already a dependency for FastAPI tests) so there's
     no extra runtime weight. Network failures are swallowed and reported
-    in the return dict — the caller can render the result without
+    in the return dict - the caller can render the result without
     crashing the dashboard.
     """
     try:

@@ -1,19 +1,19 @@
 """Carbon-footprint translation layer for cloud spend.
 
 Converts USD cost into kgCO2-equivalent emissions using:
-  1. Per-service energy intensity (kWh per USD spent) — derived from the
+  1. Per-service energy intensity (kWh per USD spent) - derived from the
      ratio of compute / storage / network bytes that each service charges
      for, normalized against AWS's published sustainability whitepapers.
-  2. Per-region grid carbon intensity (kgCO2 per kWh) — sourced from the
+  2. Per-region grid carbon intensity (kgCO2 per kWh) - sourced from the
      AWS Customer Carbon Footprint Tool methodology + each region's
      grid electricity mix as published by national operators
-     (eGRID for US, ENTSO-E for EU, etc.) circa 2024–2025.
+     (eGRID for US, ENTSO-E for EU, etc.) circa 2024-2025.
 
 Both tables are deliberately committed inline so the project does not
 require a live API call to render the carbon view. ``last_updated``
 records when the snapshot was captured.
 
-This module bridges FinOps and sustainability — the same anomaly that
+This module bridges FinOps and sustainability - the same anomaly that
 costs $957 also has a carbon-equivalent number, which is *the* metric
 most ESG-aware FinOps teams now report alongside dollars.
 """
@@ -29,7 +29,7 @@ import pandas as pd
 #   - "Sustainability in the Cloud" whitepaper (2023)
 #   - Cross-checked against the Cloud Carbon Footprint open-source
 #     project (https://github.com/cloud-carbon-footprint).
-# These are first-order approximations, not engineering-grade —
+# These are first-order approximations, not engineering-grade -
 # directionally correct for trend-spotting, not for compliance reporting.
 SERVICE_KWH_PER_USD: dict[str, float] = {
     "EC2":         2.10,   # compute dominant
@@ -53,22 +53,22 @@ SERVICE_KWH_PER_USD: dict[str, float] = {
 # Numbers reflect 2024 grid mix; AWS reports these in the Customer
 # Carbon Footprint Tool as kgCO2/kWh.
 REGION_KGCO2_PER_KWH: dict[str, float] = {
-    "us-east-1":      0.379,   # Virginia — gas+nuclear+coal mix
+    "us-east-1":      0.379,   # Virginia - gas+nuclear+coal mix
     "us-east-2":      0.498,   # Ohio
     "us-west-1":      0.213,   # N. California
-    "us-west-2":      0.140,   # Oregon — heavy hydro
-    "eu-west-1":      0.316,   # Ireland — gas+wind
-    "eu-west-2":      0.225,   # London — gas+nuclear+wind
-    "eu-west-3":      0.080,   # Paris — almost all nuclear
-    "eu-central-1":   0.339,   # Frankfurt — coal phase-out underway
-    "eu-north-1":     0.013,   # Stockholm — nearly all hydro+nuclear
-    "ap-northeast-1": 0.488,   # Tokyo — gas heavy post-Fukushima
-    "ap-northeast-2": 0.500,   # Seoul — coal heavy
-    "ap-south-1":     0.708,   # Mumbai — heavy coal
-    "ap-southeast-1": 0.493,   # Singapore — gas heavy
-    "ap-southeast-2": 0.790,   # Sydney — coal heavy
-    "sa-east-1":      0.075,   # São Paulo — heavy hydro
-    "ca-central-1":   0.130,   # Canada — heavy hydro
+    "us-west-2":      0.140,   # Oregon - heavy hydro
+    "eu-west-1":      0.316,   # Ireland - gas+wind
+    "eu-west-2":      0.225,   # London - gas+nuclear+wind
+    "eu-west-3":      0.080,   # Paris - almost all nuclear
+    "eu-central-1":   0.339,   # Frankfurt - coal phase-out underway
+    "eu-north-1":     0.013,   # Stockholm - nearly all hydro+nuclear
+    "ap-northeast-1": 0.488,   # Tokyo - gas heavy post-Fukushima
+    "ap-northeast-2": 0.500,   # Seoul - coal heavy
+    "ap-south-1":     0.708,   # Mumbai - heavy coal
+    "ap-southeast-1": 0.493,   # Singapore - gas heavy
+    "ap-southeast-2": 0.790,   # Sydney - coal heavy
+    "sa-east-1":      0.075,   # São Paulo - heavy hydro
+    "ca-central-1":   0.130,   # Canada - heavy hydro
     "global":         0.340,
 }
 
@@ -101,7 +101,7 @@ class CarbonResult:
 
 
 def carbon_for_row(service: str, region: str, cost_usd: float) -> float:
-    """Carbon footprint for a single (service, region, $) tuple — kgCO2-eq."""
+    """Carbon footprint for a single (service, region, $) tuple - kgCO2-eq."""
     kwh_per_usd = SERVICE_KWH_PER_USD.get(service, 1.50)
     kg_per_kwh = REGION_KGCO2_PER_KWH.get(region, REGION_KGCO2_PER_KWH["global"])
     return cost_usd * kwh_per_usd * kg_per_kwh
@@ -158,7 +158,7 @@ def attribute_carbon_to_alerts(
 ) -> pd.DataFrame:
     """For each alert, compute the carbon footprint of the *excess* cost.
 
-    Excess = alert cost − 14-day rolling per-(date, service) baseline.
+    Excess = alert cost - 14-day rolling per-(date, service) baseline.
     Carbon = excess × service intensity × region intensity (using the
     region that contributed the most to the alert, fallback to "global").
     """

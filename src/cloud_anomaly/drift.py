@@ -1,4 +1,4 @@
-"""Concept drift detection — when the *normal* itself shifts.
+"""Concept drift detection - when the *normal* itself shifts.
 
 The anomaly detectors all assume the baseline is stable: they flag
 points that deviate from a rolling mean. But what if the baseline is
@@ -8,10 +8,10 @@ or the rolling window needs to be shorter.
 This module implements two classical drift detectors operating on the
 per-service daily cost stream:
 
-  * **Page-Hinkley test** — a one-pass online change-point detector.
+  * **Page-Hinkley test** - a one-pass online change-point detector.
     Tracks the cumulative deviation from a running mean, flags when
     the deviation exceeds ``threshold * sigma``.
-  * **ADWIN-lite** — Adaptive Windowing. Maintains a sliding window
+  * **ADWIN-lite** - Adaptive Windowing. Maintains a sliding window
     and asks "has the mean of the recent half-window diverged from
     the older half?". When yes, the older half is dropped.
 

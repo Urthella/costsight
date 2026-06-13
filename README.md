@@ -29,6 +29,13 @@ python scripts/run_pipeline.py
 streamlit run dashboard/app.py
 ```
 
+> 💡 **Run it on your own bill:** the dashboard sidebar has an *Upload your
+> own AWS CUR (.csv)* widget. Drop a real Cost & Usage Report export and
+> every tab (alerts, attribution, forecast, carbon, recommendations) runs
+> against your data — no synthetic generation needed. Only the
+> ground-truth-dependent Precision/Recall view stays blank, since real
+> billing data ships no anomaly labels.
+
 Outputs land in `outputs/`:
 
 - `detections_{detector}.csv` — per-day detector flags + scores
@@ -65,9 +72,12 @@ src/cloud_anomaly/
   theoretical_scores.py proposal a-priori ratings (radar charts)
   benchmark.py         multi-seed Monte Carlo runner
   pipeline.py          run() — wires everything together
-dashboard/app.py       Streamlit UI (9 tabs: cost trend / alert log /
-                       root-cause / detector comparison / calendar /
-                       forecast / lab / replay / raw data)
+dashboard/app.py       Streamlit UI (19 tabs: summary / cost trend /
+                       alert log / root-cause / detector comparison /
+                       calendar / forecast / budget / playbook / incidents /
+                       perf / carbon / recommendations / tagging / AI explain /
+                       drift / lab / replay / raw data). Sidebar accepts a
+                       drag-and-drop AWS CUR upload to run on your own bill.
 scripts/
   run_pipeline.py        single-run CLI
   run_benchmark.py       25-seed CLI
@@ -284,14 +294,18 @@ Steady-state cost ~$5/mo per tenant at the default toggles.
 
 ## Scope
 
-Phase 1 (May 20 deadline): synthetic data, three detectors plus an
-ensemble vote, alert module, root-cause attribution, P/R evaluation,
-multi-seed benchmark, dashboard with calendar / forecast / lab /
-replay tabs, statistical significance tests. Phase 2 (post-finals):
-comparison report extension, paper-style writeup. Out of scope:
-real-time streaming, multi-cloud ingestion, production deployment of
-the detection pipeline (the dashboard is deployable; the pipeline
-remains batch).
+Phase 1 (May 20 deadline): synthetic data **and real AWS CUR ingestion
+(file upload)**, three detectors plus an ensemble vote, alert module,
+root-cause attribution, P/R evaluation, multi-seed benchmark, a 19-tab
+dashboard (summary / forecast / carbon / drift / recommendations /
+tagging / AI-explain / lab / replay / …), and statistical significance
+tests. Phase 2 (post-finals): comparison report extension, paper-style
+writeup. Out of scope: real-time streaming and *automated* multi-cloud
+ingestion — GCP/Azure billing is covered as a documented schema mapping
+([REPORT.md § 4.2](REPORT.md)), not a live adapter; only AWS CUR is
+wired end-to-end. Production deployment of the detection pipeline stays
+batch (the dashboard and REST API are deployable; the pipeline is not a
+streaming service).
 
 ## License
 

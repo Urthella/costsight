@@ -1,4 +1,4 @@
-"""Alert module — turns flagged points into ranked, severity-banded alerts.
+"""Alert module - turns flagged points into ranked, severity-banded alerts.
 
 Severity definition (matches the proposal slide):
     severity = deviation × duration × dollar_impact

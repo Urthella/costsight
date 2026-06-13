@@ -6,9 +6,9 @@ The output mimics the daily-granularity CUR schema: one row per
 Three anomaly types are injected with deterministic ground-truth labels
 so the same dataset can be used to compute Precision/Recall later:
 
-  * point_spike   — single-day cost explosion (e.g. infinite loop)
-  * level_shift   — persistent step up after some change
-  * gradual_drift — slow upward creep over a window
+  * point_spike   - single-day cost explosion (e.g. infinite loop)
+  * level_shift   - persistent step up after some change
+  * gradual_drift - slow upward creep over a window
 """
 from __future__ import annotations
 
@@ -20,23 +20,23 @@ import pandas as pd
 
 from .config import DEFAULT_DAYS, DEFAULT_SEED, RAW_DIR, SERVICE_TAGS, SERVICES
 
-# Scenario presets — each one biases the anomaly mix the dashboard
+# Scenario presets - each one biases the anomaly mix the dashboard
 # regenerate-button creates, so reviewers can see "what happens when the
 # month is mostly drift" / "what happens during a multi-region outage".
 SCENARIOS = {
-    "default":           "Standard mix — 1 spike + 1 level shift + 1 drift.",
+    "default":           "Standard mix - 1 spike + 1 level shift + 1 drift.",
     "drift_heavy":       "Three concurrent gradual drifts on the data tier.",
     "spike_storm":       "Six point spikes scattered across services.",
     "stealth_leak":      "Slow multi-service leak that masquerades as growth.",
-    "multi_region":      "Region outage — costs shift from one region to another.",
+    "multi_region":      "Region outage - costs shift from one region to another.",
     "weekend_camouflage": "Spike timed on weekends to dodge weekly seasonality.",
-    "calm":              "No anomalies — pure baseline (negative control).",
+    "calm":              "No anomalies - pure baseline (negative control).",
 }
 
 
 @dataclass(frozen=True)
 class InjectedAnomaly:
-    """One injected anomaly — used as ground truth for evaluation."""
+    """One injected anomaly - used as ground truth for evaluation."""
 
     service: str
     anomaly_type: str
@@ -139,7 +139,7 @@ def _scenario_anomalies(
     if scenario == "calm":
         return []
 
-    # default — keep the original behavior to preserve benchmark numbers.
+    # default - keep the original behavior to preserve benchmark numbers.
     spike_ec2 = max(0, last - 12)
     spike_lambda = min(last, max(5, n_days // 4))
     level_start = min(last, max(7, int(n_days * 0.4)))
@@ -165,7 +165,7 @@ def _default_anomalies(n_days: int, rng: np.random.Generator) -> list[InjectedAn
     """Pick a representative set of anomalies, scaled to ``n_days``.
 
     All day indices are in [0, n_days - 1] so the generator works for
-    arbitrary window sizes the dashboard slider exposes (30–180).
+    arbitrary window sizes the dashboard slider exposes (30-180).
     """
     services = [s[0] for s in SERVICES]
     anomalies: list[InjectedAnomaly] = []
@@ -244,7 +244,7 @@ def generate(
 ) -> tuple[pd.DataFrame, pd.DataFrame, list[InjectedAnomaly]]:
     """Generate a synthetic CUR dataset and write CSV + Parquet to ``out_dir``.
 
-    The ``scenario`` argument biases the anomaly mix — see
+    The ``scenario`` argument biases the anomaly mix - see
     :data:`SCENARIOS` for the available presets. The default scenario
     preserves the original behavior so the existing 25-seed benchmark
     numbers remain reproducible.

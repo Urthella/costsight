@@ -1,6 +1,6 @@
-"""Tag governance — quantify and prioritize tag debt.
+"""Tag governance - quantify and prioritize tag debt.
 
-The single biggest unforced FinOps error is **untagged spend** — money
+The single biggest unforced FinOps error is **untagged spend** - money
 that can't be attributed to a team or environment, so nobody owns it,
 so nobody optimizes it. This module computes:
 
@@ -97,7 +97,7 @@ def evaluate_tagging(cur_df: pd.DataFrame, required: tuple[str, ...] = REQUIRED_
 def _emit_policy_yaml(required: tuple[str, ...]) -> str:
     """A copy-pasteable AWS Config / SCP rule that enforces these tags."""
     tag_list = "\n".join(f"      - {t.removeprefix('tag_').capitalize()}" for t in required)
-    return f"""# AWS Config / SCP policy stub — enforce the required tags at deploy-time.
+    return f"""# AWS Config / SCP policy stub - enforce the required tags at deploy-time.
 # Save as required-tags.yaml and apply via Config Rules or SCP.
 Type: AWS::Config::ConfigRule
 Properties:

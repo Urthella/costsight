@@ -3,10 +3,10 @@
 Outputs land in ``slides/figures/`` as 1600x900 PNGs that can be dropped
 straight into the existing slide deck:
 
-    fig01_dataset_overview.png   — slide 6 replacement (synthetic data peek)
-    fig02_f1_by_type.png         — slide 9 replacement (empirical bar chart)
-    fig03_performance_matrix.png — slide 10 replacement (empirical heatmap)
-    fig04_detector_overlay.png   — bonus: same trend, three detectors
+    fig01_dataset_overview.png   - slide 6 replacement (synthetic data peek)
+    fig02_f1_by_type.png         - slide 9 replacement (empirical bar chart)
+    fig03_performance_matrix.png - slide 10 replacement (empirical heatmap)
+    fig04_detector_overlay.png   - bonus: same trend, three detectors
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from cloud_anomaly.synthetic_data import generate  # noqa: E402
 OUT = ROOT / "slides" / "figures"
 OUT.mkdir(parents=True, exist_ok=True)
 
-# Project palette — matches the proposal slide deck.
+# Project palette - matches the proposal slide deck.
 TEAL = "#2A9D8F"
 ORANGE = "#E9A23B"
 SLATE = "#264653"
@@ -66,7 +66,7 @@ def fig_dataset_overview(cur, labels):
                        color=type_colors[atype], alpha=0.22, label=label)
             plotted.add(atype)
 
-    ax.set_title("Synthetic AWS CUR — daily spend with injected anomalies",
+    ax.set_title("Synthetic AWS CUR - daily spend with injected anomalies",
                  fontsize=20, fontweight="bold", color=SLATE, pad=14)
     ax.set_ylabel("$ / day", fontsize=14, color=SLATE)
     ax.set_xlabel("Date", fontsize=14, color=SLATE)
@@ -107,7 +107,7 @@ def fig_f1_by_type(comparison):
     ax.set_xticklabels([t.replace("_", " ").title() for t in types], fontsize=14)
     ax.set_ylim(0, 1.1)
     ax.set_ylabel("F1 score", fontsize=14, color=SLATE)
-    ax.set_title("Empirical F1 by anomaly type — same dataset, three detectors",
+    ax.set_title("Empirical F1 by anomaly type - same dataset, three detectors",
                  fontsize=20, fontweight="bold", color=SLATE, pad=14)
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=12)
@@ -145,7 +145,7 @@ def fig_performance_matrix(comparison):
     ax.set_xticklabels([label_d[d] for d in detectors], fontsize=14)
     ax.set_yticks(range(len(types)))
     ax.set_yticklabels([label_t[t] for t in types], fontsize=14)
-    ax.set_title("Anomaly type × Method — empirical F1 score",
+    ax.set_title("Anomaly type × Method - empirical F1 score",
                  fontsize=20, fontweight="bold", color=SLATE, pad=14)
     cbar = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.02)
     cbar.set_label("F1 score", fontsize=12, color=SLATE)
@@ -157,7 +157,7 @@ def fig_performance_matrix(comparison):
 
 
 def fig_detector_overlay(cur):
-    """Three small-multiples panels — one detector per row — showing where each
+    """Three small-multiples panels - one detector per row - showing where each
     fires against the same daily total cost. Far easier to read than overlay.
     """
     long = aggregate_by_service(cur)
@@ -179,7 +179,7 @@ def fig_detector_overlay(cur):
         ax.scatter(flagged_daily["date"], flagged_daily["cost"],
                    color=color, s=130, marker="o", alpha=0.95,
                    edgecolor="white", linewidth=1.6, zorder=5)
-        ax.set_title(f"{label}  —  {n_flagged} day(s) flagged",
+        ax.set_title(f"{label}  -  {n_flagged} day(s) flagged",
                      fontsize=15, fontweight="bold", color=SLATE, loc="left")
         ax.set_ylabel("$ / day", fontsize=12, color=SLATE)
         ax.spines[["top", "right"]].set_visible(False)

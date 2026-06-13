@@ -1,6 +1,6 @@
 """Cluster similar alerts together so reviewers see "incidents" not noise.
 
-A real FinOps team rarely cares about individual alert rows — they care
+A real FinOps team rarely cares about individual alert rows - they care
 about *incidents*: "the 4 alerts on April 14-17 are all the same RDS
 drift". This module groups alerts whose features are close in
 multi-dimensional space (date proximity, service identity, severity,
@@ -30,8 +30,8 @@ def cluster_alerts(
       - ``incident_size`` : how many alerts share the same incident_id.
 
     Tunable knobs:
-      * ``eps`` — DBSCAN density radius. Smaller = more incidents.
-      * ``min_samples`` — minimum alerts to form an incident (2 is the
+      * ``eps`` - DBSCAN density radius. Smaller = more incidents.
+      * ``min_samples`` - minimum alerts to form an incident (2 is the
         smallest meaningful "this is a pattern, not noise" threshold).
     """
     if alerts.empty:
@@ -43,11 +43,11 @@ def cluster_alerts(
     df = alerts.copy()
     df["date"] = pd.to_datetime(df["date"])
 
-    # Feature engineering — every column normalized.
+    # Feature engineering - every column normalized.
     features = pd.DataFrame({
         # Day-of-history (so close-in-time alerts cluster).
         "day_idx": (df["date"] - df["date"].min()).dt.days.astype(float),
-        # Severity score directly (0–1).
+        # Severity score directly (0-1).
         "severity": df["severity_score"].astype(float),
         # Categorical → integer codes.
         "service_code": df["service"].astype("category").cat.codes.astype(float),

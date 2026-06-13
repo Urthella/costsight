@@ -1,4 +1,4 @@
-"""Consensus / ensemble detector — combines the three base detectors.
+"""Consensus / ensemble detector - combines the three base detectors.
 
 Hard vote: a (date, service) point is flagged when at least `min_votes`
 of the base detectors agree (default 2 of 3). The score is the max of

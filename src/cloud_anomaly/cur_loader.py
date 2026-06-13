@@ -4,7 +4,7 @@ AWS Cost & Usage Report (CUR) files use a verbose, slash-separated
 column naming convention (e.g. ``lineItem/UnblendedCost``). This module
 maps that schema onto the project's internal long-format
 ``(date, service, region, usage_type, cost, [tag_team, tag_environment])``
-without introducing any AWS-SDK runtime dependency — we just read the
+without introducing any AWS-SDK runtime dependency - we just read the
 CSV / Parquet that AWS drops in your S3 bucket.
 
 Tested against:
@@ -114,12 +114,21 @@ def load_cur_csv(path: str | Path) -> pd.DataFrame:
         raw = pd.read_parquet(path)
     else:
         raw = pd.read_csv(path)
+    return load_cur_frame(raw, source=str(path))
 
+
+def load_cur_frame(raw: pd.DataFrame, source: str = "<dataframe>") -> pd.DataFrame:
+    """Normalize an already-read AWS CUR frame to the project's long format.
+
+    Same contract and output schema as :func:`load_cur_csv`, but starts from
+    an in-memory DataFrame - used by the dashboard's CUR upload widget, which
+    hands us a file buffer rather than a path on disk.
+    """
     cols = {key: _pick_column(raw, cands) for key, cands in COLUMN_CANDIDATES.items()}
     missing = [k for k in ("date", "product_code", "cost") if cols[k] is None]
     if missing:
         raise ValueError(
-            f"AWS CUR file at {path} is missing required columns: {missing}. "
+            f"AWS CUR source {source} is missing required columns: {missing}. "
             f"Available columns: {sorted(raw.columns)[:20]}…"
         )
 

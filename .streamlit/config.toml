@@ -6,9 +6,11 @@ runOnSave = true
 gatherUsageStats = false
 
 [theme]
-base = "dark"
-primaryColor = "#2A9D8F"
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#1E293B"
-textColor = "#E2E8F0"
+base = "light"
+# Data-dense analytics palette (ui-ux-pro-max): blue primary + amber accent,
+# soft off-white background (gentler than #FFFFFF under projector glare).
+primaryColor = "#1E40AF"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#E9EEF6"
+textColor = "#0F172A"
 font = "sans serif"
