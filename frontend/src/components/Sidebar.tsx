@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { NavLink } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Cloud, Upload, X } from "lucide-react";
 import { NAV } from "../nav";
@@ -42,17 +43,31 @@ export function Sidebar() {
                 key={it.key}
                 to={it.path}
                 end={it.path === "/"}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                    isActive
-                      ? "bg-primary/10 font-medium text-primary"
-                      : "text-foreground/80 hover:bg-muted",
-                  )
-                }
+                className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
               >
-                <it.icon size={16} />
-                {it.label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-pill"
+                        className="absolute inset-0 rounded-md bg-primary/10"
+                        transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                      />
+                    )}
+                    <it.icon
+                      size={16}
+                      className={cn("relative z-10", isActive && "text-primary")}
+                    />
+                    <span
+                      className={cn(
+                        "relative z-10",
+                        isActive ? "font-medium text-primary" : "text-foreground/80",
+                      )}
+                    >
+                      {it.label}
+                    </span>
+                  </>
+                )}
               </NavLink>
             ))}
           </div>

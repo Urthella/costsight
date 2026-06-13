@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "../lib/utils";
 
+// Every Card animates in (fade + lift) and lifts its shadow on hover — this is
+// the "motion on every page" primitive. Honors prefers-reduced-motion.
 export function Card({
   className,
   children,
@@ -8,15 +11,21 @@ export function Card({
   className?: string;
   children: ReactNode;
 }) {
+  const reduced = useReducedMotion();
   return (
-    <div
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      whileHover={reduced ? undefined : { boxShadow: "0 10px 28px rgba(15,23,42,0.10)" }}
+      transition={{ type: "spring", stiffness: 240, damping: 26 }}
       className={cn(
         "rounded-xl border border-border bg-card shadow-sm",
         className,
       )}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 

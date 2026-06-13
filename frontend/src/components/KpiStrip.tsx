@@ -1,32 +1,69 @@
+import { useEffect } from "react";
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  animate,
+  useReducedMotion,
+  type Variants,
+} from "framer-motion";
 import type { Kpis } from "../types";
-import { Card, CardBody } from "./ui";
 import { usd, DETECTOR_LABEL } from "../lib/utils";
 
-function Kpi({
+const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
+
+function CountUp({
+  value,
+  format,
+}: {
+  value: number;
+  format: (n: number) => string;
+}) {
+  const reduced = useReducedMotion();
+  const mv = useMotionValue(reduced ? value : 0);
+  const out = useTransform(mv, format);
+  useEffect(() => {
+    if (reduced) {
+      mv.set(value);
+      return;
+    }
+    const controls = animate(mv, value, { duration: 0.7, ease: "easeOut" });
+    return () => controls.stop();
+  }, [value, reduced, mv]);
+  return <motion.span>{out}</motion.span>;
+}
+
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+} satisfies Variants;
+const item = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
+} satisfies Variants;
+
+function Tile({
   label,
   value,
   hint,
   accent,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   hint?: string;
   accent?: boolean;
 }) {
   return (
-    <Card className="flex-1">
-      <CardBody className="p-3">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div
-          className={
-            "mt-1 text-2xl font-semibold " + (accent ? "text-primary" : "")
-          }
-        >
-          {value}
-        </div>
-        {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
-      </CardBody>
-    </Card>
+    <motion.div
+      variants={item}
+      className="flex-1 rounded-xl border border-border bg-card p-3 shadow-sm"
+    >
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={"mt-1 text-2xl font-semibold " + (accent ? "text-primary" : "")}>
+        {value}
+      </div>
+      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
+    </motion.div>
   );
 }
 
@@ -35,17 +72,30 @@ export function KpiStrip({ kpis }: { kpis: Kpis }) {
     .map(([k, n]) => `${DETECTOR_LABEL[k] ?? k}: ${n}`)
     .join(" · ");
   return (
-    <div className="flex flex-wrap gap-3">
-      <Kpi label="Total spend" value={usd(kpis.total_spend)} />
-      <Kpi label="Services" value={String(kpis.n_services)} />
-      <Kpi label="Anomalies flagged" value={String(kpis.total_flags)} hint={perDet} />
-      <Kpi label="Consensus alerts" value={String(kpis.consensus_alerts)} hint="≥2 detectors" />
-      <Kpi
+    <motion.div
+      className="flex flex-wrap gap-3"
+      variants={container}
+      initial="hidden"
+      animate="show"
+    >
+      <Tile label="Total spend" value={<CountUp value={kpis.total_spend} format={(v) => usd(v)} />} />
+      <Tile label="Services" value={<CountUp value={kpis.n_services} format={intFmt} />} />
+      <Tile
+        label="Anomalies flagged"
+        value={<CountUp value={kpis.total_flags} format={intFmt} />}
+        hint={perDet}
+      />
+      <Tile
+        label="Consensus alerts"
+        value={<CountUp value={kpis.consensus_alerts} format={intFmt} />}
+        hint="≥2 detectors"
+      />
+      <Tile
         label={`$ savable (${kpis.best_detector ?? "—"})`}
-        value={usd(kpis.savable_usd)}
+        value={<CountUp value={kpis.savable_usd} format={(v) => usd(v)} />}
         hint={`${Math.round(kpis.leak_ratio * 100)}% of leak`}
         accent
       />
-    </div>
+    </motion.div>
   );
 }
