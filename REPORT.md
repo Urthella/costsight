@@ -28,7 +28,7 @@ triage them.
 We built an end-to-end pipeline:
 
 ```
-Synthetic AWS CUR  ─►  Preprocessing  ─►  Three detectors  ─►  Alerts  ─►  Streamlit dashboard
+Synthetic AWS CUR  ─►  Preprocessing  ─►  Three detectors  ─►  Alerts  ─►  FastAPI  ─►  React web app
                                           • Z-Score
                                           • STL Decomposition
                                           • Isolation Forest
@@ -120,14 +120,22 @@ is the length of the contiguous flagged-day run the point belongs to,
 and `dollar` is `cost / service_mean` capped at 5×. Output is written as
 both CSV and JSON for FinOps tooling.
 
-### 2.5 Dashboard
+### 2.5 Web app
 
-A Streamlit app (`dashboard/app.py`) with sidebar controls (regenerate
-data, change horizon, switch detector, filter severities) and **five
-tabs**: cost trend with anomaly markers + per-service breakdown; alert
-log with CSV download; **root-cause attribution** with one-line hints;
-detector comparison with the F1-by-type bar chart; raw data inspector
-with the synthetic CUR rows and ground-truth labels.
+A **React** single-page app (`frontend/`, Vite + TypeScript + Tailwind +
+Plotly + React Three Fiber) backed by a **FastAPI** service
+(`src/cloud_anomaly/api.py`). The frontend fetches one cached
+`GET /api/snapshot` per (scenario, days, seed) and fans it out across
+**19 views** grouped into five sections (Overview, Detection, FinOps,
+Sustainability, Lab & Data): an executive summary with a 3D spend
+skyline; cost trend, calendar and a dedicated 3D explorer; alert log;
+**root-cause attribution** with one-line hints; detector comparison
+(3D F1 bars); forecast, budget, recommendations, carbon, tagging,
+incidents, drift, an LLM explainer and a threshold lab. Most charts
+render in 3D by default with a 3D｜2D toggle; the sidebar accepts a
+drag-and-drop **AWS CUR upload** so the whole app runs on real data.
+A guided tour introduces the layout on first visit. (The original
+Streamlit dashboard is archived under `legacy/`.)
 
 ---
 
@@ -226,9 +234,9 @@ on the OVERALL F1 mean gives:
 
 The CIs do not overlap, which corroborates the Wilcoxon verdict: STL's
 lead over the other two methods is **statistically robust**, not a
-single-seed fluke. Numbers update automatically — the dashboard's
-*Detector comparison* tab loads `outputs/benchmark_raw.csv` on every
-session and recomputes the CI / p-value tables live.
+single-seed fluke. Numbers update automatically — the *Detector
+comparison* view (served from the benchmark in `outputs/benchmark_raw.csv`)
+recomputes the CI / p-value tables live.
 
 ---
 
@@ -247,9 +255,11 @@ src/cloud_anomaly/
 ├── attribution.py       root-cause hint per alert (region / usage_type)
 ├── evaluation.py        Precision/Recall/F1 by anomaly type + alert quality
 ├── benchmark.py         multi-seed Monte Carlo
-└── pipeline.py          run() — wires everything together
+├── pipeline.py          run() — wires everything together
+└── api.py               FastAPI: /api/snapshot + scenarios/perf/explain/upload
 
-dashboard/app.py         Streamlit UI (5 tabs)
+frontend/                React + Vite + TS + Tailwind + Plotly + R3F (19 views)
+legacy/                  archived Streamlit app (pre-React; tag streamlit-v1)
 scripts/
 ├── run_pipeline.py      CLI: full pipeline → outputs/
 ├── run_benchmark.py     CLI: 25-seed benchmark → outputs/benchmark_*.csv
@@ -281,7 +291,7 @@ flowchart LR
     F --> G[(DynamoDB<br/>alerts table)]
     F --> H[SNS topic<br/>HIGH severity only]
     H --> I[Slack / Email / PagerDuty]
-    G --> J[Streamlit / API Gateway<br/>dashboard/app.py]
+    G --> J[FastAPI api.py<br/>+ React web app]
     J --> K[FinOps engineer]
     L[CloudWatch metrics<br/>+ alarms] -.-> E
     L -.-> J
@@ -297,7 +307,7 @@ flowchart LR
 | Root-cause hint (same pass) | `attribution.attribute` |
 | Alert sink (DynamoDB) | replaces `outputs/alerts_*.csv|json` writes — same schema |
 | Notification (SNS topic) | a thin wrapper over the alert frame; not built |
-| Dashboard hosting | `dashboard/app.py` deploys to Streamlit Cloud / ECS / Cloud Run |
+| Web app hosting | static React build (`frontend/dist`) on any static host; `api.py` (FastAPI) on ECS / Cloud Run |
 | Forecasting & "projected monthly" | `forecast.py` (Holt-Winters with weekly seasonality) |
 
 **Why this shape:**
@@ -316,9 +326,9 @@ flowchart LR
 - **SNS fan-out** — keeping notification routing outside the detector
   pass means we can add Slack / PagerDuty / email subscribers without
   redeploying the pipeline.
-- **Dashboard as a separate tier** — the Streamlit app reads
-  DynamoDB; it has no detector dependencies. Deploy lifecycle is
-  decoupled from the detection pipeline.
+- **Web app as a separate tier** — the React frontend talks only to the
+  FastAPI tier (which reads DynamoDB); it has no detector dependencies.
+  Frontend and backend deploy lifecycles are fully decoupled.
 
 **Estimated steady-state cost** (one tenant, ~10 GB/mo CUR feed,
 50 services):
@@ -330,7 +340,7 @@ flowchart LR
 | ECS Fargate detection | 1 vCPU × 4 min × 30 days | ~$3 |
 | DynamoDB alerts | on-demand, ~5k writes/mo | < $1 |
 | SNS notifications | 100 messages/mo | negligible |
-| Streamlit Cloud (free tier) / ECS dashboard | t3.small if self-hosted | $0 – $15 |
+| Static frontend (Vercel/Netlify free) + FastAPI on ECS/Cloud Run | t3.small if self-hosted | $0 – $15 |
 | **Total** | | **~$5 – $20 / mo / tenant** |
 
 Even at the high end this is two orders of magnitude cheaper than the
@@ -340,9 +350,10 @@ enterprise scale alike.
 
 **What's deployed today:**
 
-- The dashboard ships a `.streamlit/config.toml` and is one-click
-  deployable to Streamlit Community Cloud (`https://*.streamlit.app`)
-  — see [README.md § Deploying the dashboard](README.md#deploying-the-dashboard).
+- The React frontend builds to a static bundle (`frontend/dist`,
+  deployable to Vercel / Netlify / S3+CloudFront) and the FastAPI backend
+  ships as a Docker image; `docker compose up` brings up both locally
+  — see [README.md § Deploying the app](README.md#deploying-the-app).
 - The pipeline runs locally / in CI today; the Lambda + ECS shapes
   above are designed-for, not built. They are the natural Phase-2
   /production extension.
