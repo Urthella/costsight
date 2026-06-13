@@ -1,19 +1,4 @@
 services:
-  dashboard:
-    build: .
-    image: costsight:latest
-    container_name: costsight-dashboard
-    ports:
-      - "8501:8501"
-    environment:
-      - PYTHONPATH=/app/src
-    volumes:
-      - ./data:/app/data
-      - ./outputs:/app/outputs
-      - ./examples:/app/examples
-    command: ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
-    restart: unless-stopped
-
   api:
     build: .
     image: costsight:latest

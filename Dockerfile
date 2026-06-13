@@ -16,11 +16,9 @@ RUN pip install -r requirements.txt
 
 COPY src ./src
 COPY scripts ./scripts
-COPY dashboard ./dashboard
-COPY .streamlit ./.streamlit
 
 ENV PYTHONPATH=/app/src
 
-EXPOSE 8501 8000
+EXPOSE 8000
 
-CMD ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["uvicorn", "cloud_anomaly.api:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -7,34 +7,42 @@ Project 13 · Cloud Computing · Spring 2025–2026
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-End-to-end pipeline that ingests AWS CUR-style billing data, runs three
-anomaly detectors in parallel (STL Decomposition, Isolation Forest, Z-Score),
-generates severity-scored alerts, and visualizes everything in a Streamlit
-dashboard.
+End-to-end pipeline that ingests AWS CUR-style billing data, runs four
+anomaly detectors in parallel (STL Decomposition, Isolation Forest, Z-Score,
+Ensemble), generates severity-scored alerts, and serves everything through a
+**FastAPI** backend to a **React** web app (Vite + TypeScript + Tailwind +
+Plotly).
 
 > 📄 **Full technical write-up:** [`REPORT.md`](REPORT.md) · 🎬 **Demo walkthrough:** [`DEMO.md`](DEMO.md) · 🎤 **Slide deck:** [`slides/deck.md`](slides/deck.md)
 
 ## Quick start
 
 ```bash
-# 1. Install
+# 1. Install backend
 python -m venv .venv
 . .venv/Scripts/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. Generate synthetic data + run the full pipeline
+# 2. Generate synthetic data + run the full pipeline (optional; the API can also generate on demand)
 python scripts/run_pipeline.py
 
-# 3. Launch the dashboard
-streamlit run dashboard/app.py
+# 3. Start the API (data source for the web app)
+uvicorn cloud_anomaly.api:app --reload --port 8000
+
+# 4. In a second terminal, start the web app
+cd frontend
+npm install                        # first run only
+npm run dev                        # http://localhost:5173 (proxies /api -> :8000)
 ```
 
-> 💡 **Run it on your own bill:** the dashboard sidebar has an *Upload your
-> own AWS CUR (.csv)* widget. Drop a real Cost & Usage Report export and
-> every tab (alerts, attribution, forecast, carbon, recommendations) runs
-> against your data — no synthetic generation needed. Only the
-> ground-truth-dependent Precision/Recall view stays blank, since real
-> billing data ships no anomaly labels.
+> 💡 **Run it on your own bill:** point the pipeline / API at a real AWS Cost &
+> Usage Report via `cloud_anomaly.cur_loader.load_cur_csv()`; detection,
+> alerts, attribution, forecast, carbon and recommendations all run against
+> your data. Only the ground-truth-dependent Precision/Recall view stays blank,
+> since real billing data ships no anomaly labels.
+>
+> The previous Streamlit UI is archived under [`legacy/`](legacy/) (git tag
+> `streamlit-v1`).
 
 Outputs land in `outputs/`:
 
@@ -72,12 +80,13 @@ src/cloud_anomaly/
   theoretical_scores.py proposal a-priori ratings (radar charts)
   benchmark.py         multi-seed Monte Carlo runner
   pipeline.py          run() — wires everything together
-dashboard/app.py       Streamlit UI (19 tabs: summary / cost trend /
-                       alert log / root-cause / detector comparison /
-                       calendar / forecast / budget / playbook / incidents /
-                       perf / carbon / recommendations / tagging / AI explain /
-                       drift / lab / replay / raw data). Sidebar accepts a
-                       drag-and-drop AWS CUR upload to run on your own bill.
+  api.py               FastAPI: /api/snapshot (full bundle) + scenarios/perf/explain
+frontend/              React + Vite + TS + Tailwind + Plotly web app (19 views:
+                       summary / cost trend / calendar / alert log / root-cause /
+                       detector comparison / incidents / drift / forecast / budget /
+                       recommendations / playbook / carbon / tagging / AI explain /
+                       perf / lab / replay / raw data). Reads /api/snapshot.
+legacy/                archived Streamlit app (pre-React; git tag streamlit-v1)
 scripts/
   run_pipeline.py        single-run CLI
   run_benchmark.py       25-seed CLI
@@ -170,38 +179,29 @@ triage.
 pytest -q
 ```
 
-## Deploying the dashboard
+## Deploying the app
 
-The Streamlit dashboard is one-click deployable to **Streamlit Community
-Cloud** — the easiest path to a live URL for the demo.
+The frontend is a static bundle and the backend is a stateless API, so they
+deploy independently:
 
-1. Sign in at <https://streamlit.io/cloud> with your GitHub account.
-2. Click **New app**, point it at this repository, branch `main`,
-   main file path: `dashboard/app.py`.
-3. Python version: **3.11**. The platform installs everything from
-   `requirements.txt` automatically; no extra config is needed.
-4. Once it builds (~3 min), Streamlit publishes a public URL of the form
-   `https://<app-name>.streamlit.app`. Share it during the demo.
+1. **Backend** — containerize with the included `Dockerfile` (serves
+   `uvicorn cloud_anomaly.api:app` on :8000) and run it anywhere (ECS, Cloud
+   Run, Fly.io, Render). See
+   [`REPORT.md` § Cloud architecture](REPORT.md#cloud-architecture-production-path).
+2. **Frontend** — `cd frontend && npm run build` produces `frontend/dist/`,
+   a static site deployable to Vercel / Netlify / S3+CloudFront / GitHub Pages.
+   Set `VITE_API_URL` to the deployed API origin at build time; in dev it
+   proxies `/api` to `:8000` automatically.
 
-`.streamlit/config.toml` is committed and pre-configures the dark theme
-and the brand color, so the deployed instance looks identical to local.
-
-For a containerized deploy (ECS, Cloud Run, Fly.io, Render), see
-[`REPORT.md` § Cloud architecture](REPORT.md#cloud-architecture-production-path).
-
-### Docker (one-shot local stack)
+### Docker (backend)
 
 ```bash
-docker compose up --build          # dashboard on :8501, REST API on :8000
+docker compose up --build          # REST API on :8000, OpenAPI at /docs
 ```
 
-The compose file boots two services off the same image:
-
-- `dashboard` — Streamlit UI (`http://localhost:8501`).
-- `api` — FastAPI REST surface (`http://localhost:8000`, OpenAPI at `/docs`).
-
-Both mount `./data`, `./outputs`, and `./examples` as volumes so artifacts
-survive container restarts.
+The compose file runs the FastAPI service (`api`) off the image; it mounts
+`./data` and `./outputs` so artifacts survive restarts. Run the frontend
+dev server (`npm run dev`) or a static build against it.
 
 ### REST API (FastAPI)
 
@@ -240,9 +240,9 @@ After the first release (`v1.0.0` tag), the package is on PyPI:
 
 ```bash
 pip install costsight                  # core: detectors + alerts + attribution
-pip install "costsight[dashboard]"     # + Streamlit dashboard deps
-pip install "costsight[api]"           # + FastAPI / uvicorn
+pip install "costsight[api]"           # + FastAPI / uvicorn (backend for the web app)
 pip install "costsight[llm]"           # + anthropic SDK for AI explanations
+pip install "costsight[figures]"       # + matplotlib for slide figures
 pip install "costsight[dev]"           # everything, plus pytest
 ```
 
@@ -294,18 +294,18 @@ Steady-state cost ~$5/mo per tenant at the default toggles.
 
 ## Scope
 
-Phase 1 (May 20 deadline): synthetic data **and real AWS CUR ingestion
-(file upload)**, three detectors plus an ensemble vote, alert module,
-root-cause attribution, P/R evaluation, multi-seed benchmark, a 19-tab
-dashboard (summary / forecast / carbon / drift / recommendations /
-tagging / AI-explain / lab / replay / …), and statistical significance
-tests. Phase 2 (post-finals): comparison report extension, paper-style
-writeup. Out of scope: real-time streaming and *automated* multi-cloud
-ingestion — GCP/Azure billing is covered as a documented schema mapping
-([REPORT.md § 4.2](REPORT.md)), not a live adapter; only AWS CUR is
-wired end-to-end. Production deployment of the detection pipeline stays
-batch (the dashboard and REST API are deployable; the pipeline is not a
-streaming service).
+Phase 1 (May 20 deadline): synthetic data **and real AWS CUR ingestion**,
+three detectors plus an ensemble vote, alert module, root-cause attribution,
+P/R evaluation, multi-seed benchmark, a **19-view React web app** (summary /
+forecast / carbon / drift / recommendations / tagging / AI-explain / lab /
+replay / …) over a FastAPI backend, and statistical significance tests.
+Phase 2 (post-finals): 3D/animation layer, comparison report extension,
+paper-style writeup. Out of scope: real-time streaming and *automated*
+multi-cloud ingestion — GCP/Azure billing is covered as a documented schema
+mapping ([REPORT.md § 4.2](REPORT.md)), not a live adapter; only AWS CUR is
+wired end-to-end. Production deployment of the detection pipeline stays batch
+(the web app and REST API are deployable; the pipeline is not a streaming
+service).
 
 ## License
 

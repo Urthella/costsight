@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project context
 
-**costsight** — Project 13, Cloud Computing (Spring 2025–2026). An end-to-end cloud-cost anomaly detector with severity scoring, root-cause attribution, forecasting, carbon translation, and an 18-tab Streamlit dashboard. Two-person student project (Halil Utku Demirtaş + Furkan Can Karafil); Phase 1 demo deadline **2026-05-20**.
+**costsight** — Project 13, Cloud Computing (Spring 2025–2026). An end-to-end cloud-cost anomaly detector with severity scoring, root-cause attribution, forecasting, carbon translation, and a 19-view **React** web app (Vite + TypeScript + Tailwind + Plotly) served over a **FastAPI** backend. Two-person student project (Halil Utku Demirtaş + Furkan Can Karafil); Phase 1 demo deadline **2026-05-20**.
+
+> The UI was migrated from Streamlit to React for performance and a 3D/animation roadmap. The original Streamlit app is archived under [`legacy/`](legacy/) and tagged `streamlit-v1`; do not extend it.
 
 The repo deliberately overshoots the original Phase 1 scope and now ships three distribution channels: source (this repo), PyPI (`pip install costsight` after a `v*.*.*` tag), and Terraform (`terraform/` module that stands up the full AWS architecture).
 
@@ -25,10 +27,7 @@ python scripts/run_benchmark.py --seeds 25
 # Regenerate the 4 presentation PNGs under slides/figures/
 python scripts/make_figures.py
 
-# Dashboard (port 8501)
-python -m streamlit run dashboard/app.py --server.headless true --server.port 8501
-
-# REST API (port 8000, OpenAPI at /docs)
+# REST API — the frontend's data source (port 8000, OpenAPI at /docs)
 uvicorn cloud_anomaly.api:app --reload --port 8000
 
 # Tests
@@ -36,12 +35,23 @@ pytest -q                              # all
 pytest -q tests/test_pipeline.py::test_each_detector_runs   # single test
 ```
 
+The web UI lives in `frontend/` (Vite + React + TS). It calls the FastAPI
+backend, so run the API first, then:
+
+```powershell
+cd frontend
+npm install              # first time only
+npm run dev              # dev server on :5173, proxies /api -> :8000
+npm run build            # tsc + vite production build into frontend/dist
+```
+
 After a successful `pip install -e .` (or `pip install costsight` once released), three console scripts become available: `costsight-pipeline`, `costsight-benchmark`, `costsight-api`.
 
-## Streamlit gotchas
+## Frontend notes (React + Vite)
 
-- **Module cache survives hot reload for `from X import Y` statements.** When you add a new name to a module that the dashboard imports, Streamlit's auto-reload often fails with `ImportError: cannot import name '...'`. Fix: kill the Streamlit process (`Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue` → `Stop-Process -Force`) and relaunch. Hit this twice in development — it is not a code bug.
-- **`Regenerate synthetic data` checkbox + scenario dropdown share a session_state signature** (`dashboard/app.py`). Changing scenario / n_days / seed automatically forces a regenerate even when the checkbox is off — the user expects scenario switches to update the dataset, and `_load`'s `@st.cache_data` key was not enough on its own.
+- **One snapshot, many views.** The whole UI is driven by a single `GET /api/snapshot?scenario&n_days&seed` call (`build_snapshot` in `api.py`) cached by TanStack Query (`useSnapshot`). Adding a field to the snapshot is the way to feed a new view — don't add per-view endpoints unless the work is heavy/lazy (see `/api/perf`, `/api/explain`).
+- **Plotly via factory.** `src/lib/plot.tsx` builds the component off `plotly.js-dist-min` through `react-plotly.js/factory`. Both are CommonJS, so the imports are unwrapped with `.default ?? mod` — without that you get `createPlotlyComponent is not a function` and a blank screen.
+- **Routing = nav keys.** `src/nav.ts` is the source of truth (5 groups / 19 views, short ASCII keys + Material/Lucide icons); `App.tsx` maps each key to a view component. Theme tokens live in `src/index.css` (`@theme`, Tailwind v4).
 
 ## Architecture
 
@@ -72,7 +82,7 @@ synthetic_data.generate(scenario=...)           # or cur_loader.load_cur_csv() f
   → explainer.explain_alert() (Claude API; falls back to deterministic template)
 ```
 
-`pipeline.run()` is the orchestrator script — it writes detections / alerts / attribution / comparison / benchmark CSVs into `outputs/`. The dashboard (`dashboard/app.py`) and the FastAPI app (`src/cloud_anomaly/api.py`) call into the same modules; they are alternative *views*, not parallel implementations.
+`pipeline.run()` is the orchestrator script — it writes detections / alerts / attribution / comparison / benchmark CSVs into `outputs/`. The React frontend (`frontend/`) and the FastAPI app (`src/cloud_anomaly/api.py`) are the live path: the API calls into these modules and the frontend renders the result; the archived Streamlit app (`legacy/`) called the same modules directly. They are alternative *views*, not parallel implementations.
 
 ### Scenario presets
 
@@ -90,15 +100,16 @@ synthetic_data.generate(scenario=...)           # or cur_loader.load_cur_csv() f
 
 - **Commit messages: NO AI co-author trailers.** The user's global `~/.claude/CLAUDE.md` forbids `Co-Authored-By: Claude …` and `Generated with Claude Code` footers. Just write the message.
 - **PowerShell-first.** Windows is the dev environment. Use `Get-NetTCPConnection` / `Stop-Process`, not bash. `Bash` tool works via Git Bash but PowerShell is preferred for OS-level ops.
-- **`@st.cache_data` for any function that touches the disk or runs a detector.** The dashboard reruns the whole script on every interaction; without caching, detector latency makes the UI feel laggy.
+- **Cache server work, not the client.** Heavy module calls are bundled into `build_snapshot` and cached client-side by TanStack Query (keyed on scenario/n_days/seed). Don't add a new round-trip per view — extend the snapshot.
 - **No comments on the WHAT.** Comments are reserved for non-obvious WHY (e.g. "preserves the original benchmark numbers" in `_scenario_anomalies`). Don't write multi-paragraph docstrings.
 - **Tests live in `tests/test_pipeline.py`.** Every new module adds at least one smoke test there. Tests assume the working directory is the repo root (they `sys.path.insert(0, str(ROOT / "src"))`).
 
 ## Cross-references
 
-- [`README.md`](README.md) — quick-start, install-as-library, Docker, Streamlit Cloud deploy steps.
+- [`README.md`](README.md) — quick-start, install-as-library, Docker, frontend build + API deploy steps.
 - [`REPORT.md`](REPORT.md) — full technical report. § 3.5 (statistical significance), § 4.1 (cloud architecture diagram), § 4.2 (multi-cloud schema mapping).
 - [`DEMO.md`](DEMO.md) — 2-minute timed demo-video script.
 - [`slides/deck.md`](slides/deck.md) — Marp slide deck; `slides/deck.pdf` is the rendered build.
 - [`terraform/README.md`](terraform/README.md) — how to `terraform init/plan/apply` the production architecture into AWS.
-- [`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb) — end-to-end notebook reproducing every dashboard tab in static form.
+- [`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb) — end-to-end notebook reproducing every view in static form.
+- [`frontend/`](frontend/) — React web app (Vite + TS + Tailwind + Plotly); `legacy/` holds the archived Streamlit app.
