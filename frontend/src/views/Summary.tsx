@@ -1,8 +1,14 @@
+import { lazy, Suspense } from "react";
 import { LayoutDashboard } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
 import { Card, CardBody, SectionTitle, SeverityBadge } from "../components/ui";
 import { usd } from "../lib/utils";
 import type { Alert } from "../types";
+
+// Lazy so three.js streams in *after* the landing paints (keeps first load fast).
+const SpendSkyline = lazy(() =>
+  import("../components/SpendSkyline").then((m) => ({ default: m.SpendSkyline })),
+);
 
 const SEV_COLORS: [string, string][] = [
   ["HIGH", "#dc2626"],
@@ -55,6 +61,18 @@ export default function Summary() {
   for (const i of incidents) mix[i.severity] = (mix[i.severity] ?? 0) + 1;
   const rec = data.recommendations[0];
 
+  // Per-service totals + alert counts for the 3D spend landscape.
+  const totals: Record<string, number> = {};
+  for (const s of data.series) totals[s.service] = (totals[s.service] ?? 0) + s.cost;
+  const skyline = Object.entries(totals)
+    .map(([service, total]) => ({ service, total }))
+    .sort((a, b) => b.total - a.total);
+  const alertCount: Record<string, number> = {};
+  for (const a of data.alerts) alertCount[a.service] = (alertCount[a.service] ?? 0) + 1;
+  const skylineInfo = Object.fromEntries(
+    Object.entries(alertCount).map(([k, v]) => [k, `${v} alerts`]),
+  );
+
   return (
     <div>
       <SectionTitle
@@ -62,6 +80,19 @@ export default function Summary() {
         title="Executive summary"
         subtitle={`${data.meta.scenario} · ${data.meta.dataset_days} days · ${data.meta.n_services} services`}
       />
+
+      <Card className="mb-3">
+        <CardBody>
+          <div className="mb-1 text-sm font-medium">
+            Spend landscape — drag to orbit, hover a tower
+          </div>
+          <Suspense
+            fallback={<div className="h-[320px] animate-pulse rounded-lg bg-muted" />}
+          >
+            <SpendSkyline data={skyline} info={skylineInfo} />
+          </Suspense>
+        </CardBody>
+      </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card>
