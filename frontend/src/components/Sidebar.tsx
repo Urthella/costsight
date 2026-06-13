@@ -31,7 +31,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
+      <nav data-tour="nav" className="flex-1 overflow-y-auto px-2 py-3">
         {NAV.map((group) => (
           <div key={group.label} className="mb-3">
             <div className="flex items-center gap-1.5 px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -43,6 +43,7 @@ export function Sidebar() {
                 key={it.key}
                 to={it.path}
                 end={it.path === "/"}
+                data-tour={it.key === "threed" ? "threed" : undefined}
                 className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
               >
                 {({ isActive }) => (
@@ -74,7 +75,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="space-y-3 border-t border-border px-3 py-3 text-sm">
+      <div data-tour="datasource" className="space-y-3 border-t border-border px-3 py-3 text-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Data source
         </div>
@@ -124,7 +125,7 @@ export function Sidebar() {
         <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Synthetic data
         </div>
-        <label className="block">
+        <label data-tour="scenario" className="block">
           <span className="text-xs text-muted-foreground">Scenario</span>
           <select
             value={params.scenario}

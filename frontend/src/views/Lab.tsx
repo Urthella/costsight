@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
-import { Card, CardBody, SectionTitle } from "../components/ui";
+import { Card, CardBody, SectionTitle, ModeToggle } from "../components/ui";
 import Plot, { PLOT_CONFIG, PLOT_LAYOUT_BASE } from "../lib/plot";
+import { PLOT3D_LAYOUT } from "../lib/threed";
 import { DETECTOR_LABEL } from "../lib/utils";
 
 function quantile(sorted: number[], q: number): number {
@@ -15,6 +16,7 @@ export default function Lab() {
   const { data } = useSnapshot();
   const [det, setDet] = useState("");
   const [pct, setPct] = useState(0.9);
+  const [mode, setMode] = useState<"3d" | "2d">("3d");
   if (!data) return null;
 
   const detector = det || data.detectors[0];
@@ -24,13 +26,14 @@ export default function Lab() {
   const flaggedRows = rows.filter((r) => r.score >= threshold);
   const flaggedDates = [...new Set(flaggedRows.map((r) => r.date))];
   const dateToCost = new Map(data.daily.map((d) => [d.date, d.cost]));
+  const services = data.meta.services;
 
   return (
     <div>
       <SectionTitle
         icon={SlidersHorizontal}
         title="Threshold sensitivity playground"
-        subtitle="Re-threshold a detector's scores live — see precision/recall trade-offs without re-running anything server-side."
+        subtitle="Re-threshold a detector's scores live. 3D plots every (date × service) point by score; red points clear the threshold. Slide to watch them light up."
       />
       <Card>
         <CardBody>
@@ -60,17 +63,49 @@ export default function Lab() {
               <span className="text-muted-foreground">Flagged points: </span>
               <span className="text-lg font-semibold">{flaggedRows.length}</span>
             </div>
+            <ModeToggle mode={mode} onChange={setMode} />
           </div>
 
           <div className="mt-4">
-            <Plot
-              data={[
-                { x: data.daily.map((d) => d.date), y: data.daily.map((d) => d.cost), type: "scatter", mode: "lines", name: "Daily cost", line: { color: "#64748b", width: 2 } },
-                { x: flaggedDates, y: flaggedDates.map((d) => dateToCost.get(d) ?? null), type: "scatter", mode: "markers", name: "Flagged", marker: { color: "#dc2626", size: 9, symbol: "circle", line: { width: 1, color: "#1e293b" } } },
-              ]}
-              layout={{ ...PLOT_LAYOUT_BASE, height: 400, yaxis: { title: "Cost ($)" } }}
-              config={PLOT_CONFIG} useResizeHandler style={{ width: "100%" }}
-            />
+            {mode === "3d" ? (
+              <Plot
+                data={[{
+                  type: "scatter3d",
+                  mode: "markers",
+                  x: rows.map((r) => r.date),
+                  y: rows.map((r) => services.indexOf(r.service)),
+                  z: rows.map((r) => r.score),
+                  marker: {
+                    size: rows.map((r) => (r.score >= threshold ? 5 : 3)),
+                    color: rows.map((r) => (r.score >= threshold ? "#dc2626" : "#94a3b8")),
+                    opacity: 0.85,
+                  },
+                  text: rows.map((r) => `${r.service} · ${r.date}: score ${r.score.toFixed(2)}${r.score >= threshold ? " · FLAGGED" : ""}`),
+                  hoverinfo: "text",
+                }]}
+                layout={{
+                  ...PLOT3D_LAYOUT,
+                  height: 440,
+                  scene: {
+                    xaxis: { title: "Date" },
+                    yaxis: { tickvals: services.map((_, i) => i), ticktext: services, title: "" },
+                    zaxis: { title: "Anomaly score" },
+                    camera: { eye: { x: 1.7, y: 1.7, z: 1.05 } },
+                    aspectmode: "cube",
+                  },
+                }}
+                config={PLOT_CONFIG} useResizeHandler style={{ width: "100%" }}
+              />
+            ) : (
+              <Plot
+                data={[
+                  { x: data.daily.map((d) => d.date), y: data.daily.map((d) => d.cost), type: "scatter", mode: "lines", name: "Daily cost", line: { color: "#64748b", width: 2 } },
+                  { x: flaggedDates, y: flaggedDates.map((d) => dateToCost.get(d) ?? null), type: "scatter", mode: "markers", name: "Flagged", marker: { color: "#dc2626", size: 9, symbol: "circle", line: { width: 1, color: "#1e293b" } } },
+                ]}
+                layout={{ ...PLOT_LAYOUT_BASE, height: 400, yaxis: { title: "Cost ($)" } }}
+                config={PLOT_CONFIG} useResizeHandler style={{ width: "100%" }}
+              />
+            )}
           </div>
         </CardBody>
       </Card>

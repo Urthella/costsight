@@ -1,10 +1,12 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { HelpCircle } from "lucide-react";
 import { Sidebar } from "./components/Sidebar";
 import { KpiStrip } from "./components/KpiStrip";
 import { KpiSkeleton, ViewSkeleton } from "./components/ui";
 import { useSnapshot } from "./hooks/useSnapshot";
+import { startTour, maybeAutoTour } from "./lib/tour";
 import { ALL_ITEMS } from "./nav";
 import Placeholder from "./views/Placeholder";
 
@@ -37,15 +39,31 @@ function Content() {
   const { data, isLoading, isError, error } = useSnapshot();
   const location = useLocation();
   const reduced = useReducedMotion();
+
+  // Auto-run the guided tour once, after the shell + KPI anchors exist.
+  useEffect(() => {
+    if (data) maybeAutoTour();
+  }, [data]);
+
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-7xl p-6">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Automated Cloud Cost Anomaly Detector
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Project 13 · Cloud Computing · Spring 2025–2026
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Automated Cloud Cost Anomaly Detector
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Project 13 · Cloud Computing · Spring 2025–2026
+            </p>
+          </div>
+          <button
+            onClick={startTour}
+            className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          >
+            <HelpCircle size={15} /> Tour
+          </button>
+        </div>
 
         {isLoading && (
           <div className="mt-4 space-y-6">
@@ -62,7 +80,7 @@ function Content() {
 
         {data && (
           <>
-            <div className="mt-4">
+            <div className="mt-4" data-tour="kpis">
               <KpiStrip kpis={data.kpis} />
             </div>
             <div className="mt-6">
