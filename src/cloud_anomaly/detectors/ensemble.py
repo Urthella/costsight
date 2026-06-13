@@ -22,12 +22,20 @@ def _normalize(series: pd.Series) -> pd.Series:
     return (s - lo) / (hi - lo)
 
 
-def detect(df: pd.DataFrame, min_votes: int = 2) -> pd.DataFrame:
-    base = {
-        "zscore": zscore_detect(df),
-        "stl": stl_detect(df),
-        "iforest": iforest_detect(df),
-    }
+def detect(
+    df: pd.DataFrame,
+    min_votes: int = 2,
+    base: dict[str, pd.DataFrame] | None = None,
+) -> pd.DataFrame:
+    # Callers that already ran the base detectors (e.g. the snapshot builder)
+    # can pass them in to avoid re-running Isolation Forest a second time.
+    # Output is identical either way.
+    if base is None:
+        base = {
+            "zscore": zscore_detect(df),
+            "stl": stl_detect(df),
+            "iforest": iforest_detect(df),
+        }
     merged = None
     for name, det in base.items():
         d = det[["date", "service", "cost", "score", "is_anomaly"]].copy()

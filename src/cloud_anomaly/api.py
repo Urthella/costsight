@@ -17,6 +17,8 @@ Endpoints:
 """
 from __future__ import annotations
 
+import threading
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -31,6 +33,7 @@ from .carbon import carbon_footprint
 from .clustering import cluster_alerts, summarize_incidents
 from .config import RAW_DIR
 from .detectors import DETECTORS
+from .detectors.ensemble import detect as ensemble_detect
 from .drift import detect_drift
 from .evaluation import (
     compare_detectors,
@@ -224,12 +227,14 @@ def _df_records(df: pd.DataFrame) -> list[dict[str, Any]]:
     return out.to_dict(orient="records")
 
 
+@lru_cache(maxsize=16)
 def build_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) -> dict[str, Any]:
     """Run the full pipeline once and return everything the dashboard renders.
 
     A single round-trip the React app caches per (scenario, n_days, seed) and
     fans out across ~15 views. Heavy/optional work (perf grid, LLM explain)
-    stays in its own lazy endpoint.
+    stays in its own lazy endpoint. Memoized server-side so repeat visits to
+    the same (scenario, n_days, seed) are instant.
     """
     if scenario not in SCENARIOS:
         raise HTTPException(status_code=400, detail=f"unknown scenario '{scenario}'")
@@ -239,7 +244,14 @@ def build_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) 
     daily = aggregate_daily(cur_df)
     dataset_days = int(long["date"].nunique())
 
-    detections = {name: fn(long) for name, fn in DETECTORS.items()}
+    # Run the three base detectors once, then derive the ensemble from them —
+    # otherwise the ensemble re-runs Isolation Forest (the slow one) a 2nd time.
+    base = {name: DETECTORS[name](long) for name in ("zscore", "stl", "iforest") if name in DETECTORS}
+    detections = {}
+    for name in DETECTORS:
+        detections[name] = (
+            ensemble_detect(long, base=base) if name == "ensemble" else base[name]
+        )
     alerts_by = {
         name: build_alerts(det, name, dataset_days=dataset_days)
         for name, det in detections.items()
@@ -356,7 +368,21 @@ def http_scenarios() -> dict[str, Any]:
 
 @app.get("/api/snapshot")
 def http_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) -> dict[str, Any]:
-    return build_snapshot(scenario=scenario, n_days=n_days, seed=seed)
+    # Positional call so it shares one lru_cache key with the startup warm-up.
+    return build_snapshot(scenario, n_days, seed)
+
+
+@app.on_event("startup")
+def _warm_default_snapshot() -> None:
+    """Precompute the default snapshot in the background so the very first
+    page load is instant instead of waiting on the cold pipeline (~4s)."""
+    def _go() -> None:
+        try:
+            build_snapshot("default", 90, 42)
+        except Exception:  # noqa: BLE001 — warm-up is best-effort
+            pass
+
+    threading.Thread(target=_go, daemon=True).start()
 
 
 @app.get("/api/perf")

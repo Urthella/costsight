@@ -1,9 +1,14 @@
 import { LayoutDashboard } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
 import { Card, CardBody, SectionTitle, SeverityBadge } from "../components/ui";
-import Plot, { PLOT_CONFIG, PLOT_LAYOUT_BASE } from "../lib/plot";
 import { usd } from "../lib/utils";
 import type { Alert } from "../types";
+
+const SEV_COLORS: [string, string][] = [
+  ["HIGH", "#dc2626"],
+  ["MEDIUM", "#d97706"],
+  ["LOW", "#2563eb"],
+];
 
 interface Incident {
   date: string;
@@ -132,23 +137,33 @@ export default function Summary() {
         </Card>
         <Card>
           <CardBody>
-            <div className="mb-2 text-sm font-medium">Severity mix</div>
-            <Plot
-              data={[
-                {
-                  type: "pie",
-                  hole: 0.55,
-                  labels: ["HIGH", "MEDIUM", "LOW"],
-                  values: [mix.HIGH, mix.MEDIUM, mix.LOW],
-                  marker: { colors: ["#dc2626", "#d97706", "#2563eb"] },
-                  textinfo: "label+percent",
-                },
-              ]}
-              layout={{ ...PLOT_LAYOUT_BASE, height: 260, showlegend: false, margin: { t: 10, r: 10, b: 10, l: 10 } }}
-              config={PLOT_CONFIG}
-              useResizeHandler
-              style={{ width: "100%" }}
-            />
+            <div className="mb-3 text-sm font-medium">Severity mix</div>
+            {(() => {
+              const tot = mix.HIGH + mix.MEDIUM + mix.LOW || 1;
+              const h = (mix.HIGH / tot) * 100;
+              const m = (mix.MEDIUM / tot) * 100;
+              // Lightweight CSS donut — keeps Plotly (4.5 MB) off the landing view.
+              const gradient = `conic-gradient(#dc2626 0 ${h}%, #d97706 ${h}% ${h + m}%, #2563eb ${h + m}% 100%)`;
+              return (
+                <div className="flex items-center gap-5">
+                  <div
+                    className="relative h-32 w-32 shrink-0 rounded-full"
+                    style={{ background: gradient }}
+                  >
+                    <div className="absolute inset-[24%] rounded-full bg-card" />
+                  </div>
+                  <ul className="space-y-1.5 text-sm">
+                    {SEV_COLORS.map(([k, c]) => (
+                      <li key={k} className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: c }} />
+                        <span className="text-muted-foreground">{k}</span>
+                        <span className="ml-3 font-medium tabular-nums">{mix[k]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
           </CardBody>
         </Card>
       </div>

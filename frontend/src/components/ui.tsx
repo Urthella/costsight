@@ -52,6 +52,30 @@ export function SectionTitle({
   );
 }
 
+export function KpiSkeleton() {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="h-[88px] flex-1 animate-pulse rounded-xl bg-muted" />
+      ))}
+    </div>
+  );
+}
+
+export function ViewSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="h-7 w-72 animate-pulse rounded bg-muted" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+        ))}
+      </div>
+      <div className="h-80 animate-pulse rounded-xl bg-muted" />
+    </div>
+  );
+}
+
 const SEV_CLASS: Record<string, string> = {
   HIGH: "bg-high/10 text-high border-high/30",
   MEDIUM: "bg-medium/10 text-medium border-medium/30",
