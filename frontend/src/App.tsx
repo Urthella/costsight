@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { ComponentType } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { KpiStrip } from "./components/KpiStrip";
@@ -6,6 +7,7 @@ import { useSnapshot } from "./hooks/useSnapshot";
 import { ALL_ITEMS } from "./nav";
 import Summary from "./views/Summary";
 import CostTrend from "./views/CostTrend";
+import ThreeD from "./views/ThreeD";
 import Calendar from "./views/Calendar";
 import AlertLog from "./views/AlertLog";
 import RootCause from "./views/RootCause";
@@ -28,6 +30,7 @@ import Placeholder from "./views/Placeholder";
 const VIEWS: Record<string, ComponentType> = {
   summary: Summary,
   trend: CostTrend,
+  threed: ThreeD,
   calendar: Calendar,
   alerts: AlertLog,
   rootcause: RootCause,
@@ -49,6 +52,8 @@ const VIEWS: Record<string, ComponentType> = {
 
 function Content() {
   const { data, isLoading, isError, error } = useSnapshot();
+  const location = useLocation();
+  const reduced = useReducedMotion();
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-7xl p-6">
@@ -77,18 +82,28 @@ function Content() {
               <KpiStrip kpis={data.kpis} />
             </div>
             <div className="mt-6">
-              <Routes>
-                {ALL_ITEMS.map((it) => {
-                  const Comp = VIEWS[it.key];
-                  return (
-                    <Route
-                      key={it.key}
-                      path={it.path}
-                      element={Comp ? <Comp /> : <Placeholder name={it.label} />}
-                    />
-                  );
-                })}
-              </Routes>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={location.pathname}
+                  initial={reduced ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduced ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                  transition={{ duration: reduced ? 0 : 0.2, ease: "easeOut" }}
+                >
+                  <Routes location={location}>
+                    {ALL_ITEMS.map((it) => {
+                      const Comp = VIEWS[it.key];
+                      return (
+                        <Route
+                          key={it.key}
+                          path={it.path}
+                          element={Comp ? <Comp /> : <Placeholder name={it.label} />}
+                        />
+                      );
+                    })}
+                  </Routes>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </>
         )}

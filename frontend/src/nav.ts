@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   LineChart,
+  Boxes,
   CalendarDays,
   Bell,
   Search,
@@ -51,6 +52,7 @@ export const NAV: NavGroup[] = [
       item("summary", "Summary", LayoutDashboard),
       item("trend", "Cost trend", LineChart),
       item("calendar", "Calendar", CalendarDays),
+      item("threed", "3D explorer", Boxes),
     ],
   },
   {
