@@ -22,3 +22,35 @@ export async function getScenarios(): Promise<Scenario[]> {
   const data = await getJSON<{ scenarios: Scenario[] }>("/api/scenarios");
   return data.scenarios;
 }
+
+export function getPerf(
+  p: DashboardParams,
+): Promise<{ perf: Record<string, unknown>[] }> {
+  const q = new URLSearchParams({
+    scenario: p.scenario,
+    n_days: String(p.nDays),
+    seed: String(p.seed),
+  });
+  return getJSON(`/api/perf?${q.toString()}`);
+}
+
+export interface ExplainBody {
+  service: string;
+  date: string;
+  severity: string;
+  cost: number;
+  flagged_by: string;
+  top_dimension: string;
+  top_value: string;
+}
+
+export async function postExplain(body: ExplainBody): Promise<string> {
+  const res = await fetch(`${BASE}/api/explain`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`explain → ${res.status}`);
+  const data = (await res.json()) as { explanation: string };
+  return data.explanation;
+}

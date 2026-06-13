@@ -6,12 +6,45 @@ import { useSnapshot } from "./hooks/useSnapshot";
 import { ALL_ITEMS } from "./nav";
 import Summary from "./views/Summary";
 import CostTrend from "./views/CostTrend";
+import Calendar from "./views/Calendar";
+import AlertLog from "./views/AlertLog";
+import RootCause from "./views/RootCause";
+import DetectorComparison from "./views/DetectorComparison";
+import Incidents from "./views/Incidents";
+import Drift from "./views/Drift";
+import Forecast from "./views/Forecast";
+import Budget from "./views/Budget";
+import Recommendations from "./views/Recommendations";
+import Playbook from "./views/Playbook";
+import Carbon from "./views/Carbon";
+import Tagging from "./views/Tagging";
+import AIExplain from "./views/AIExplain";
+import Perf from "./views/Perf";
+import Lab from "./views/Lab";
+import Replay from "./views/Replay";
+import RawData from "./views/RawData";
 import Placeholder from "./views/Placeholder";
 
-// Views migrated so far; the rest fall back to a Placeholder.
 const VIEWS: Record<string, ComponentType> = {
   summary: Summary,
   trend: CostTrend,
+  calendar: Calendar,
+  alerts: AlertLog,
+  rootcause: RootCause,
+  comparison: DetectorComparison,
+  incidents: Incidents,
+  drift: Drift,
+  forecast: Forecast,
+  budget: Budget,
+  reco: Recommendations,
+  playbook: Playbook,
+  carbon: Carbon,
+  tagging: Tagging,
+  ai: AIExplain,
+  perf: Perf,
+  lab: Lab,
+  replay: Replay,
+  raw: RawData,
 };
 
 function Content() {

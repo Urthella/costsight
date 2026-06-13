@@ -1,8 +1,15 @@
 // Build a React Plotly component off the lightweight dist-min bundle (avoids
 // pulling the full plotly.js source build and its TS friction).
 import type { ComponentType, CSSProperties } from "react";
-import createPlotlyComponent from "react-plotly.js/factory";
-import Plotly from "plotly.js-dist-min";
+import factoryImport from "react-plotly.js/factory";
+import plotlyImport from "plotly.js-dist-min";
+
+// Both are CommonJS; Vite's interop can hand back a { default } namespace,
+// so unwrap defensively before calling the factory.
+const createPlotlyComponent = (
+  (factoryImport as { default?: unknown }).default ?? factoryImport
+) as (plotly: unknown) => unknown;
+const Plotly = (plotlyImport as { default?: unknown }).default ?? plotlyImport;
 
 const Plot = createPlotlyComponent(Plotly) as unknown as ComponentType<{
   data: unknown[];
