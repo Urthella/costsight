@@ -12,3 +12,13 @@ services:
       - ./outputs:/app/outputs
     command: ["uvicorn", "cloud_anomaly.api:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: costsight-frontend:latest
+    container_name: costsight-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped

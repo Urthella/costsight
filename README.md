@@ -193,15 +193,18 @@ deploy independently:
    Set `VITE_API_URL` to the deployed API origin at build time; in dev it
    proxies `/api` to `:8000` automatically.
 
-### Docker (backend)
+### Docker (full stack)
 
 ```bash
-docker compose up --build          # REST API on :8000, OpenAPI at /docs
+docker compose up --build          # web app on :8080, REST API on :8000
 ```
 
-The compose file runs the FastAPI service (`api`) off the image; it mounts
-`./data` and `./outputs` so artifacts survive restarts. Run the frontend
-dev server (`npm run dev`) or a static build against it.
+Two services off the compose file:
+
+- `api` — FastAPI (`http://localhost:8000`, OpenAPI at `/docs`); mounts
+  `./data` and `./outputs` so artifacts survive restarts.
+- `frontend` — the React app built and served by nginx (`http://localhost:8080`),
+  which proxies `/api` to the `api` service.
 
 ### REST API (FastAPI)
 
