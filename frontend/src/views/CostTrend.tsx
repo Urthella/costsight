@@ -127,7 +127,7 @@ export default function CostTrend() {
 
       <SectionTitle
         title="Per-service breakdown"
-        subtitle="Where anomalies actually live — drift and level shifts are visible per service. 3D 'line forest': each service is a ribbon at its own depth; drag to orbit."
+        subtitle="Where anomalies actually live - drift and level shifts are visible per service. 3D 'line forest': each service is a ribbon at its own depth; drag to orbit."
       />
       <Card>
         <CardBody>

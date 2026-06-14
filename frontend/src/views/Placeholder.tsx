@@ -10,7 +10,7 @@ export default function Placeholder({ name }: { name: string }) {
         <div className="text-lg font-semibold">{name}</div>
         <div className="max-w-md text-sm text-muted-foreground">
           This view is being migrated from the Streamlit app. The data is
-          already served by <code>/api/snapshot</code> — the React component is
+          already served by <code>/api/snapshot</code> - the React component is
           next in the queue.
         </div>
       </CardBody>

@@ -91,7 +91,7 @@ export function KpiStrip({ kpis }: { kpis: Kpis }) {
         hint="≥2 detectors"
       />
       <Tile
-        label={`$ savable (${kpis.best_detector ?? "—"})`}
+        label={`$ savable (${kpis.best_detector ?? "-"})`}
         value={<CountUp value={kpis.savable_usd} format={(v) => usd(v)} />}
         hint={`${Math.round(kpis.leak_ratio * 100)}% of leak`}
         accent

@@ -36,7 +36,7 @@ style: |
 # costsight
 
 ## Automated Cloud Cost Anomaly Detection
-### Project 13 · Cloud Computing · Spring 2025–2026
+### Project 13 · Cloud Computing · Spring 2025-2026
 
 **Furkan Can Karafil · Halil Utku Demirtaş**
 
@@ -46,19 +46,19 @@ style: |
 
 ## The Problem
 
-> 30%+ of cloud spend is wasted — *Flexera State of the Cloud, 2024*
+> 30%+ of cloud spend is wasted - *Flexera State of the Cloud, 2024*
 
 The damage is already done by the time it shows up on the bill:
 
-- **Runaway autoscaling** — misconfigured rules trigger resource explosions
-- **Software bugs & leaks** — infinite loops can inflate the bill within hours
-- **Invisible resources** — forgotten test environments, untagged resources
+- **Runaway autoscaling** - misconfigured rules trigger resource explosions
+- **Software bugs & leaks** - infinite loops can inflate the bill within hours
+- **Invisible resources** - forgotten test environments, untagged resources
 
 Cost anomalies need to be detected in **hours**, not weeks.
 
 ---
 
-## Our Solution — End-to-End Pipeline
+## Our Solution - End-to-End Pipeline
 
 ```
 AWS CUR (synthetic ─►  Preprocessing ─► Detectors ─► Alerts ─► FastAPI ─► React app
@@ -87,16 +87,16 @@ full transparency about *which* algorithm caught *which* anomaly.
 
 ---
 
-## Synthetic Data — A Sneak Peek
+## Synthetic Data - A Sneak Peek
 
 ![bg right:60% w:100%](figures/fig01_dataset_overview.png)
 
 Three anomaly types are injected with **ground-truth labels** so we can
 compute Precision/Recall:
 
-- **Point spike** — single-day cost explosion
-- **Level shift** — persistent step up
-- **Gradual drift** — slow upward creep
+- **Point spike** - single-day cost explosion
+- **Level shift** - persistent step up
+- **Gradual drift** - slow upward creep
 
 90 days × 7 AWS services × 2 regions = **1260 CUR rows**
 
@@ -111,7 +111,7 @@ compute Precision/Recall:
 | **Isolation Forest** | ML / ensemble | Multi-feature anomalies, no labels needed |
 
 A fourth **Ensemble** detector takes a ≥2-of-3 consensus vote. Each detector
-exposes the same `detect(df)` interface — alerts and evaluation are
+exposes the same `detect(df)` interface - alerts and evaluation are
 **detector-agnostic**.
 
 ---
@@ -127,7 +127,7 @@ exposes the same `detect(df)` interface — alerts and evaluation are
 - STL is **strongest overall**
 - Isolation Forest is **mid-pack** but consistent across types
 
-> Same data, three lenses — measured, not estimated.
+> Same data, three lenses - measured, not estimated.
 
 ---
 
@@ -141,7 +141,7 @@ Empirical F1 across **25 random seeds**, mean values:
 - STL     → 0.52 / 0.62 / **0.73**
 - iForest → 0.25 / 0.22 / 0.22
 
-**Takeaway:** no single method wins all types — that's why we run all three.
+**Takeaway:** no single method wins all types - that's why we run all three.
 
 ---
 
@@ -178,24 +178,24 @@ The severity formula `deviation × duration × $impact` is a triage filter.
 | MEDIUM | **1.000** | **1.000** | **1.000** |
 | LOW    |   0.860   |   0.406   |   1.000   |
 
-**MEDIUM and HIGH alerts are ~100% true positives** across detectors — a
+**MEDIUM and HIGH alerts are ~100% true positives** across detectors - a
 FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
 
 ---
 
-## The Web App — 3D-forward, run on *your* data
+## The Web App - 3D-forward, run on *your* data
 
 A **React** single-page app over a **FastAPI** backend: one cached
 `/api/snapshot` fans out across **19 views** in five groups.
 
-- **3D by default** — detector comparison, cost surface, forecast ribbons,
+- **3D by default** - detector comparison, cost surface, forecast ribbons,
   carbon, drift and a WebGL **3D explorer** (drag to orbit); every chart has a
   **3D｜2D toggle** for precise reading
-- **Run on your bill** — drag-and-drop an **AWS CUR `.csv`** and every view
+- **Run on your bill** - drag-and-drop an **AWS CUR `.csv`** and every view
   recomputes on real data
 - **Guided tour** introduces the layout on first open; motion everywhere,
   with `prefers-reduced-motion` honored
-- **Fast** — server-side snapshot caching + warm-up (~0.2 s loads), code-split
+- **Fast** - server-side snapshot caching + warm-up (~0.2 s loads), code-split
   bundles (WebGL loads only where needed)
 
 > Clean API/UI split: the same backend serves the app, the REST API, and a
@@ -205,18 +205,18 @@ A **React** single-page app over a **FastAPI** backend: one cached
 
 ## Tech Stack
 
-**Backend** — Python 3.11+
+**Backend** - Python 3.11+
 
-- **pandas / NumPy / PyArrow** — data processing
+- **pandas / NumPy / PyArrow** - data processing
 - **statsmodels** (STL) · **scikit-learn** (Isolation Forest) · **SciPy** (stats)
-- **FastAPI / uvicorn** — REST API (`/api/snapshot`)
+- **FastAPI / uvicorn** - REST API (`/api/snapshot`)
 
-**Frontend** — React 19 + Vite + TypeScript
+**Frontend** - React 19 + Vite + TypeScript
 
 - **Plotly.js** (2D + 3D charts) · **React Three Fiber / three.js** (WebGL)
 - **Tailwind v4** · **Framer Motion** (animation) · **TanStack Query**
 
-**Ops** — GitHub Actions CI (Python 3.11/3.12 + frontend build) · Docker · Terraform
+**Ops** - GitHub Actions CI (Python 3.11/3.12 + frontend build) · Docker · Terraform
 
 > Backend: `uvicorn cloud_anomaly.api:app`. Frontend: `npm run dev`.
 > Or the whole stack: `docker compose up`.
@@ -225,13 +225,13 @@ A **React** single-page app over a **FastAPI** backend: one cached
 
 ## Achieved Deliverables
 
-- **Working Python pipeline** — 4 detectors, 21 tests green on CI
-- **Automated alert system** — JSON + CSV, severity-banded
-- **Root-cause hints** — *"us-east-1 region drove 100% of the increase"*
-- **React web app over FastAPI** — 19 views, 3D charts, guided tour, live AWS CUR upload
-- **Documented GitHub repo** — README, REPORT, DEMO, examples, MIT license
-- **Multi-seed benchmark** — 25 seeds, mean ± std reported
-- **Demo video** — 2.5-minute walkthrough of the web app
+- **Working Python pipeline** - 4 detectors, 21 tests green on CI
+- **Automated alert system** - JSON + CSV, severity-banded
+- **Root-cause hints** - *"us-east-1 region drove 100% of the increase"*
+- **React web app over FastAPI** - 19 views, 3D charts, guided tour, live AWS CUR upload
+- **Documented GitHub repo** - README, REPORT, DEMO, examples, MIT license
+- **Multi-seed benchmark** - 25 seeds, mean ± std reported
+- **Demo video** - 2.5-minute walkthrough of the web app
 
 ---
 
@@ -245,20 +245,20 @@ A **React** single-page app over a **FastAPI** backend: one cached
 | Heuristic severity formula | Learn band thresholds from FinOps feedback |
 | Single cloud (AWS) | Multi-cloud schema (GCP, Azure) |
 
-> Phase 1 scope is intentionally bounded — these are Phase 2 / Level 2 work.
+> Phase 1 scope is intentionally bounded - these are Phase 2 / Level 2 work.
 
 ---
 
 ## Work Division
 
-| Phase 1 / Phase 2 — Joint Contributions |
+| Phase 1 / Phase 2 - Joint Contributions |
 |---|
 
-- **Halil Utku Demirtaş** — CUR generator, preprocessing, alert module,
+- **Halil Utku Demirtaş** - CUR generator, preprocessing, alert module,
   Precision / Recall framework, system architecture
-- **Furkan Can Karafil** — STL implementation, Isolation Forest model,
+- **Furkan Can Karafil** - STL implementation, Isolation Forest model,
   Z-Score baseline, React web app + FastAPI, comparative analysis
-- **Joint** — GitHub repo, CI, multi-seed benchmark, technical report,
+- **Joint** - GitHub repo, CI, multi-seed benchmark, technical report,
   slide deck, demo video
 
 ---

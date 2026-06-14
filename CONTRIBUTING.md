@@ -1,7 +1,7 @@
 # Contributing to costsight
 
 Thanks for opening this file. costsight is a course project, but the
-codebase is small and welcoming to contributions — small fixes, new
+codebase is small and welcoming to contributions - small fixes, new
 detectors, dashboard polish, and additional anomaly types are all in
 scope.
 
@@ -29,7 +29,7 @@ your environment is good.
    has unusual edge cases.
 4. Re-run `python scripts/run_benchmark.py --seeds 25` to refresh the
    numbers and update `examples/benchmark_summary.csv`.
-5. Open a PR — CI will run pytest + the full pipeline on Python 3.11
+5. Open a PR - CI will run pytest + the full pipeline on Python 3.11
    and 3.12 automatically.
 
 ## Adding a new anomaly type

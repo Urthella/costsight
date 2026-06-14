@@ -59,7 +59,7 @@ section.bigstat .stat {
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
 <h1 id="costsight">costsight</h1>
 <h2 id="automated-cloud-cost-anomaly-detection">Automated Cloud Cost Anomaly Detection</h2>
-<h3 id="project-13--cloud-computing--spring-2025%E2%80%932026">Project 13 · Cloud Computing · Spring 2025–2026</h3>
+<h3 id="project-13--cloud-computing--spring-2025%E2%80%932026">Project 13 · Cloud Computing · Spring 2025-2026</h3>
 <p><strong>Furkan Can Karafil · Halil Utku Demirtaş</strong></p>
 <p><a href="https://github.com/Urthella/costsight">https://github.com/Urthella/costsight</a></p>
 </section>
@@ -114,13 +114,13 @@ section.bigstat .stat {
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
 <h2 id="the-problem">The Problem</h2>
 <blockquote>
-<p>30%+ of cloud spend is wasted — <em>Flexera State of the Cloud, 2024</em></p>
+<p>30%+ of cloud spend is wasted - <em>Flexera State of the Cloud, 2024</em></p>
 </blockquote>
 <p>The damage is already done by the time it shows up on the bill:</p>
 <ul>
-<li><strong>Runaway autoscaling</strong> — misconfigured rules trigger resource explosions</li>
-<li><strong>Software bugs &amp; leaks</strong> — infinite loops can inflate the bill within hours</li>
-<li><strong>Invisible resources</strong> — forgotten test environments, untagged resources</li>
+<li><strong>Runaway autoscaling</strong> - misconfigured rules trigger resource explosions</li>
+<li><strong>Software bugs &amp; leaks</strong> - infinite loops can inflate the bill within hours</li>
+<li><strong>Invisible resources</strong> - forgotten test environments, untagged resources</li>
 </ul>
 <p>Cost anomalies need to be detected in <strong>hours</strong>, not weeks.</p>
 </section>
@@ -173,7 +173,7 @@ section.bigstat .stat {
   font-weight: 900;
 }
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
-<h2 id="our-solution--end-to-end-pipeline">Our Solution — End-to-End Pipeline</h2>
+<h2 id="our-solution--end-to-end-pipeline">Our Solution - End-to-End Pipeline</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code>AWS CUR (synthetic ─►  Preprocessing ─► Detectors ─► Alerts ─► FastAPI ─► React app
  or your upload)                       • Z-Score
                                        • STL Decomposition       severity =
@@ -371,14 +371,14 @@ section.bigstat .stat {
   font-weight: 900;
 }
 ;background-color:#fafafa;background-image:none;--marpit-advanced-background-split:60%;" data-marpit-pagination-total="17" data-size="16:9" data-marpit-advanced-background="content" data-marpit-advanced-background-split="right">
-<h2 id="synthetic-data--a-sneak-peek">Synthetic Data — A Sneak Peek</h2>
+<h2 id="synthetic-data--a-sneak-peek">Synthetic Data - A Sneak Peek</h2>
 
 <p>Three anomaly types are injected with <strong>ground-truth labels</strong> so we can<br />
 compute Precision/Recall:</p>
 <ul>
-<li><strong>Point spike</strong> — single-day cost explosion</li>
-<li><strong>Level shift</strong> — persistent step up</li>
-<li><strong>Gradual drift</strong> — slow upward creep</li>
+<li><strong>Point spike</strong> - single-day cost explosion</li>
+<li><strong>Level shift</strong> - persistent step up</li>
+<li><strong>Gradual drift</strong> - slow upward creep</li>
 </ul>
 <p>90 days × 7 AWS services × 2 regions = <strong>1260 CUR rows</strong></p>
 </section>
@@ -483,7 +483,7 @@ section.bigstat .stat {
 </tbody>
 </table>
 <p>A fourth <strong>Ensemble</strong> detector takes a ≥2-of-3 consensus vote. Each detector<br />
-exposes the same <code>detect(df)</code> interface — alerts and evaluation are<br />
+exposes the same <code>detect(df)</code> interface - alerts and evaluation are<br />
 <strong>detector-agnostic</strong>.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
@@ -593,7 +593,7 @@ section.bigstat .stat {
 <li>Isolation Forest is <strong>mid-pack</strong> but consistent across types</li>
 </ul>
 <blockquote>
-<p>Same data, three lenses — measured, not estimated.</p>
+<p>Same data, three lenses - measured, not estimated.</p>
 </blockquote>
 </section>
 </foreignObject><foreignObject width="1280" height="720" data-marpit-advanced-background="pseudo"><section data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
@@ -725,7 +725,7 @@ section.bigstat .stat {
 <li>STL     → 0.52 / 0.62 / <strong>0.73</strong></li>
 <li>iForest → 0.25 / 0.22 / 0.22</li>
 </ul>
-<p><strong>Takeaway:</strong> no single method wins all types — that's why we run all three.</p>
+<p><strong>Takeaway:</strong> no single method wins all types - that's why we run all three.</p>
 </section>
 </foreignObject><foreignObject width="1280" height="720" data-marpit-advanced-background="pseudo"><section data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
   font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -1044,7 +1044,7 @@ section.bigstat .stat {
 </tr>
 </tbody>
 </table>
-<p><strong>MEDIUM and HIGH alerts are ~100% true positives</strong> across detectors — a<br />
+<p><strong>MEDIUM and HIGH alerts are ~100% true positives</strong> across detectors - a<br />
 FinOps engineer who only triages MEDIUM+ sees almost no false alarms.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
@@ -1096,18 +1096,18 @@ section.bigstat .stat {
   font-weight: 900;
 }
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
-<h2 id="the-web-app--3d-forward-run-on-your-data">The Web App — 3D-forward, run on <em>your</em> data</h2>
+<h2 id="the-web-app--3d-forward-run-on-your-data">The Web App - 3D-forward, run on <em>your</em> data</h2>
 <p>A <strong>React</strong> single-page app over a <strong>FastAPI</strong> backend: one cached<br />
 <code>/api/snapshot</code> fans out across <strong>19 views</strong> in five groups.</p>
 <ul>
-<li><strong>3D by default</strong> — detector comparison, cost surface, forecast ribbons,<br />
+<li><strong>3D by default</strong> - detector comparison, cost surface, forecast ribbons,<br />
 carbon, drift and a WebGL <strong>3D explorer</strong> (drag to orbit); every chart has a<br />
 <strong>3D｜2D toggle</strong> for precise reading</li>
-<li><strong>Run on your bill</strong> — drag-and-drop an <strong>AWS CUR <code>.csv</code></strong> and every view<br />
+<li><strong>Run on your bill</strong> - drag-and-drop an <strong>AWS CUR <code>.csv</code></strong> and every view<br />
 recomputes on real data</li>
 <li><strong>Guided tour</strong> introduces the layout on first open; motion everywhere,<br />
 with <code>prefers-reduced-motion</code> honored</li>
-<li><strong>Fast</strong> — server-side snapshot caching + warm-up (~0.2 s loads), code-split<br />
+<li><strong>Fast</strong> - server-side snapshot caching + warm-up (~0.2 s loads), code-split<br />
 bundles (WebGL loads only where needed)</li>
 </ul>
 <blockquote>
@@ -1165,18 +1165,18 @@ section.bigstat .stat {
 }
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
 <h2 id="tech-stack">Tech Stack</h2>
-<p><strong>Backend</strong> — Python 3.11+</p>
+<p><strong>Backend</strong> - Python 3.11+</p>
 <ul>
-<li><strong>pandas / NumPy / PyArrow</strong> — data processing</li>
+<li><strong>pandas / NumPy / PyArrow</strong> - data processing</li>
 <li><strong>statsmodels</strong> (STL) · <strong>scikit-learn</strong> (Isolation Forest) · <strong>SciPy</strong> (stats)</li>
-<li><strong>FastAPI / uvicorn</strong> — REST API (<code>/api/snapshot</code>)</li>
+<li><strong>FastAPI / uvicorn</strong> - REST API (<code>/api/snapshot</code>)</li>
 </ul>
-<p><strong>Frontend</strong> — React 19 + Vite + TypeScript</p>
+<p><strong>Frontend</strong> - React 19 + Vite + TypeScript</p>
 <ul>
 <li><strong>Plotly.js</strong> (2D + 3D charts) · <strong>React Three Fiber / three.js</strong> (WebGL)</li>
 <li><strong>Tailwind v4</strong> · <strong>Framer Motion</strong> (animation) · <strong>TanStack Query</strong></li>
 </ul>
-<p><strong>Ops</strong> — GitHub Actions CI (Python 3.11/3.12 + frontend build) · Docker · Terraform</p>
+<p><strong>Ops</strong> - GitHub Actions CI (Python 3.11/3.12 + frontend build) · Docker · Terraform</p>
 <blockquote>
 <p>Backend: <code>uvicorn cloud_anomaly.api:app</code>. Frontend: <code>npm run dev</code>.<br />
 Or the whole stack: <code>docker compose up</code>.</p>
@@ -1233,13 +1233,13 @@ section.bigstat .stat {
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
 <h2 id="achieved-deliverables">Achieved Deliverables</h2>
 <ul>
-<li><strong>Working Python pipeline</strong> — 4 detectors, 21 tests green on CI</li>
-<li><strong>Automated alert system</strong> — JSON + CSV, severity-banded</li>
-<li><strong>Root-cause hints</strong> — <em>&quot;us-east-1 region drove 100% of the increase&quot;</em></li>
-<li><strong>React web app over FastAPI</strong> — 19 views, 3D charts, guided tour, live AWS CUR upload</li>
-<li><strong>Documented GitHub repo</strong> — README, REPORT, DEMO, examples, MIT license</li>
-<li><strong>Multi-seed benchmark</strong> — 25 seeds, mean ± std reported</li>
-<li><strong>Demo video</strong> — 2.5-minute walkthrough of the web app</li>
+<li><strong>Working Python pipeline</strong> - 4 detectors, 21 tests green on CI</li>
+<li><strong>Automated alert system</strong> - JSON + CSV, severity-banded</li>
+<li><strong>Root-cause hints</strong> - <em>&quot;us-east-1 region drove 100% of the increase&quot;</em></li>
+<li><strong>React web app over FastAPI</strong> - 19 views, 3D charts, guided tour, live AWS CUR upload</li>
+<li><strong>Documented GitHub repo</strong> - README, REPORT, DEMO, examples, MIT license</li>
+<li><strong>Multi-seed benchmark</strong> - 25 seeds, mean ± std reported</li>
+<li><strong>Demo video</strong> - 2.5-minute walkthrough of the web app</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
@@ -1323,7 +1323,7 @@ section.bigstat .stat {
 </tbody>
 </table>
 <blockquote>
-<p>Phase 1 scope is intentionally bounded — these are Phase 2 / Level 2 work.</p>
+<p>Phase 1 scope is intentionally bounded - these are Phase 2 / Level 2 work.</p>
 </blockquote>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
@@ -1379,16 +1379,16 @@ section.bigstat .stat {
 <table>
 <thead>
 <tr>
-<th>Phase 1 / Phase 2 — Joint Contributions</th>
+<th>Phase 1 / Phase 2 - Joint Contributions</th>
 </tr>
 </thead>
 </table>
 <ul>
-<li><strong>Halil Utku Demirtaş</strong> — CUR generator, preprocessing, alert module,<br />
+<li><strong>Halil Utku Demirtaş</strong> - CUR generator, preprocessing, alert module,<br />
 Precision / Recall framework, system architecture</li>
-<li><strong>Furkan Can Karafil</strong> — STL implementation, Isolation Forest model,<br />
+<li><strong>Furkan Can Karafil</strong> - STL implementation, Isolation Forest model,<br />
 Z-Score baseline, React web app + FastAPI, comparative analysis</li>
-<li><strong>Joint</strong> — GitHub repo, CI, multi-seed benchmark, technical report,<br />
+<li><strong>Joint</strong> - GitHub repo, CI, multi-seed benchmark, technical report,<br />
 slide deck, demo video</li>
 </ul>
 </section>

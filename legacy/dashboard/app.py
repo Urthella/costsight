@@ -438,7 +438,7 @@ def main() -> None:
     # used to truncate as a single value string) lives in the tooltip.
     k3.metric(
         "Anomalies flagged", f"{total_flags:,}",
-        help=f"Per detector — {counts_str}" if counts_str else "No detectors active",
+        help=f"Per detector - {counts_str}" if counts_str else "No detectors active",
     )
     k4.metric("Consensus alerts", n_consensus, help="Alerts flagged by ≥2 detectors (severity-filtered)")
     k5.metric(

@@ -1,6 +1,6 @@
-# costsight — Technical Report
+# costsight - Technical Report
 
-**Project 13 · Cloud Computing Spring 2025–2026 · Level 1 Standard**
+**Project 13 · Cloud Computing Spring 2025-2026 · Level 1 Standard**
 **Furkan Can Karafil · Halil Utku Demirtaş**
 
 Repository: <https://github.com/Urthella/costsight>
@@ -54,7 +54,7 @@ ground-truth label table so detectors can be evaluated rigorously:
 
 | Type | Mechanism | Real-world analogue |
 |---|---|---|
-| **Point spike** | Multiply one day's cost by 4×–6× | Infinite loop in a cron job |
+| **Point spike** | Multiply one day's cost by 4×-6× | Infinite loop in a cron job |
 | **Level shift** | Multiply a 20-day window by 1.7× | Mis-sized instance redeploy |
 | **Gradual drift** | Linear ramp 1.0 → 2.0 over the tail of the window | Forgotten log accumulation |
 
@@ -72,8 +72,8 @@ baseline.
 **STL Decomposition.** `statsmodels`' robust STL fits each per-service
 series with a weekly period. We score with the maximum of:
 
-- residual / σ — captures point spikes the trend can't explain;
-- max(0, trend − early-window baseline) / scale — captures gradual drift
+- residual / σ - captures point spikes the trend can't explain;
+- max(0, trend - early-window baseline) / scale - captures gradual drift
   and level shifts where the trend climbs.
 
 This dual score is the key to STL's drift performance.
@@ -84,7 +84,7 @@ median/mean, rolling std, day-over-day pct change, 30-day trend
 deviation, 14-day trend slope, lag-1 and lag-7 ratios, a same-weekday
 seasonal residual, and cyclic day-of-week. Anomalies must satisfy both
 the model's native `predict(...) == -1` and a normalized score
-threshold of 0.55 — combining sklearn's intrinsic cutoff with a guard
+threshold of 0.55 - combining sklearn's intrinsic cutoff with a guard
 against per-service over-flagging.
 
 ### 2.3 Root-cause attribution
@@ -99,7 +99,7 @@ largest positive delta, and emits a short summary string:
 > us-east-1 region drove 100% of the increase.*
 
 This is intentionally a deterministic, ratio-based hint rather than a
-full causal-inference engine — Level 2 work would correlate these
+full causal-inference engine - Level 2 work would correlate these
 hints against deployment events, autoscaler actions, and IAM policy
 changes. But even the simple version is immediately useful at the
 dashboard level: a FinOps engineer sees the dollar delta, the dominant
@@ -112,7 +112,7 @@ one glance.
 clipped to `[0, 1]` and bucketed into:
 
 - **HIGH** ≥ 0.66
-- **MEDIUM** 0.33–0.66
+- **MEDIUM** 0.33-0.66
 - **LOW** < 0.33
 
 Where `deviation` is the detector score normalized per run, `duration`
@@ -143,7 +143,7 @@ Streamlit dashboard is archived under `legacy/`.)
 
 ### 3.1 Setup
 
-- 25 independent random seeds (1000–1024).
+- 25 independent random seeds (1000-1024).
 - 90-day synthetic dataset per seed.
 - Default detector hyperparameters.
 - Metrics: per-anomaly-type Precision, Recall, F1 + an OVERALL row.
@@ -169,7 +169,7 @@ Reproduce with `python scripts/run_benchmark.py --seeds 25`.
 
 ### 3.3 Interpretation
 
-**No single method wins all anomaly types** — the central thesis of the
+**No single method wins all anomaly types** - the central thesis of the
 project is empirically supported. The takeaways:
 
 - **STL leads overall** at F1 = 0.757 ± 0.064. Decomposing trend +
@@ -185,7 +185,7 @@ project is empirically supported. The takeaways:
   drift signal once we engineer lag, slope, and seasonal-residual
   features, but still cannot match STL's structural decomposition on
   univariate cost. Its strength would shine on multi-cloud, multi-tag,
-  multi-feature workloads — out of scope here, listed as future work.
+  multi-feature workloads - out of scope here, listed as future work.
 
 ### 3.4 Alert quality by severity band
 
@@ -202,7 +202,7 @@ On one representative seed (seed = 42) the breakdown is:
 | Z-Score | LOW    |  1 |  1 | 1.000 |
 
 MEDIUM- and HIGH-severity alerts are perfect for STL and Z-Score across
-seeds and acceptably high for iForest — meaning a FinOps engineer who
+seeds and acceptably high for iForest - meaning a FinOps engineer who
 only triages MEDIUM and above will see almost no false alarms. LOW
 alerts contain the noisier detections, which matches the proposal's
 intent of using severity as a triage filter rather than a hard
@@ -210,7 +210,7 @@ classifier.
 
 ---
 
-### 3.5 Statistical significance — is the lead real?
+### 3.5 Statistical significance - is the lead real?
 
 The 25-seed benchmark gives us a per-seed F1 distribution per detector.
 We test pairwise differences with the Wilcoxon signed-rank test on
@@ -234,7 +234,7 @@ on the OVERALL F1 mean gives:
 
 The CIs do not overlap, which corroborates the Wilcoxon verdict: STL's
 lead over the other two methods is **statistically robust**, not a
-single-seed fluke. Numbers update automatically — the *Detector
+single-seed fluke. Numbers update automatically - the *Detector
 comparison* view (served from the benchmark in `outputs/benchmark_raw.csv`)
 recomputes the CI / p-value tables live.
 
@@ -255,7 +255,7 @@ src/cloud_anomaly/
 ├── attribution.py       root-cause hint per alert (region / usage_type)
 ├── evaluation.py        Precision/Recall/F1 by anomaly type + alert quality
 ├── benchmark.py         multi-seed Monte Carlo
-├── pipeline.py          run() — wires everything together
+├── pipeline.py          run() - wires everything together
 └── api.py               FastAPI: /api/snapshot + scenarios/perf/explain/upload
 
 frontend/                React + Vite + TS + Tailwind + Plotly + R3F (19 views)
@@ -278,7 +278,7 @@ is what makes evaluation, alerts, and dashboard fully detector-agnostic.
 The pipeline runs as a single Python process today (the Phase 1 demo
 target), but every component is deliberately designed to map onto a
 real AWS deployment without rewrites. The diagram below shows what the
-production-path topology looks like — and which boxes already exist as
+production-path topology looks like - and which boxes already exist as
 modules in this repo.
 
 ```mermaid
@@ -305,7 +305,7 @@ flowchart LR
 | Detection pass (ECS / Lambda) | `detectors/{zscore,stl,iforest,ensemble}.py` |
 | Severity scoring (same pass) | `alerts.build_alerts` |
 | Root-cause hint (same pass) | `attribution.attribute` |
-| Alert sink (DynamoDB) | replaces `outputs/alerts_*.csv|json` writes — same schema |
+| Alert sink (DynamoDB) | replaces `outputs/alerts_*.csv|json` writes - same schema |
 | Notification (SNS topic) | a thin wrapper over the alert frame; not built |
 | Web app hosting | static React build (`frontend/dist`) on any static host; `api.py` (FastAPI) on ECS / Cloud Run |
 | Forecasting & "projected monthly" | `forecast.py` (Holt-Winters with weekly seasonality) |
@@ -316,17 +316,17 @@ flowchart LR
   delivery path. Customers receive CUR files in their own S3 bucket;
   the Lambda layer normalizes column names, joins price-list metadata,
   and writes a Parquet partition keyed by date.
-- **ECS Fargate (or AWS Batch) for detection** — STL fitting and
+- **ECS Fargate (or AWS Batch) for detection** - STL fitting and
   IForest training are not free; we want a managed compute layer with
   a few minutes of runtime, not an under-15-minute Lambda. Spot pricing
   is fine because the workload is idempotent.
-- **DynamoDB for alerts** — alerts are append-only, indexed by
+- **DynamoDB for alerts** - alerts are append-only, indexed by
   `(detector, date, service)`. Single-digit-millisecond reads from the
   dashboard, no JOINs needed. TTL on rows older than 90 days.
-- **SNS fan-out** — keeping notification routing outside the detector
+- **SNS fan-out** - keeping notification routing outside the detector
   pass means we can add Slack / PagerDuty / email subscribers without
   redeploying the pipeline.
-- **Web app as a separate tier** — the React frontend talks only to the
+- **Web app as a separate tier** - the React frontend talks only to the
   FastAPI tier (which reads DynamoDB); it has no detector dependencies.
   Frontend and backend deploy lifecycles are fully decoupled.
 
@@ -340,12 +340,12 @@ flowchart LR
 | ECS Fargate detection | 1 vCPU × 4 min × 30 days | ~$3 |
 | DynamoDB alerts | on-demand, ~5k writes/mo | < $1 |
 | SNS notifications | 100 messages/mo | negligible |
-| Static frontend (Vercel/Netlify free) + FastAPI on ECS/Cloud Run | t3.small if self-hosted | $0 – $15 |
-| **Total** | | **~$5 – $20 / mo / tenant** |
+| Static frontend (Vercel/Netlify free) + FastAPI on ECS/Cloud Run | t3.small if self-hosted | $0 - $15 |
+| **Total** | | **~$5 - $20 / mo / tenant** |
 
 Even at the high end this is two orders of magnitude cheaper than the
 "30%+ of cloud spend wasted" baseline the project is trying to recover
-— the value proposition holds at academic-budget scale and at
+- the value proposition holds at academic-budget scale and at
 enterprise scale alike.
 
 **What's deployed today:**
@@ -353,7 +353,7 @@ enterprise scale alike.
 - The React frontend builds to a static bundle (`frontend/dist`,
   deployable to Vercel / Netlify / S3+CloudFront) and the FastAPI backend
   ships as a Docker image; `docker compose up` brings up both locally
-  — see [README.md § Deploying the app](README.md#deploying-the-app).
+  - see [README.md § Deploying the app](README.md#deploying-the-app).
 - The pipeline runs locally / in CI today; the Lambda + ECS shapes
   above are designed-for, not built. They are the natural Phase-2
   /production extension.
@@ -454,7 +454,7 @@ to the detection / alert / attribution / forecasting pipeline.
 
 ## 8. Acknowledgements
 
-This project was developed for *Cloud Computing — Spring 2025–2026*.
+This project was developed for *Cloud Computing - Spring 2025-2026*.
 Synthetic data is inspired by the AWS CUR schema; the three detection
 algorithms (Z-Score, STL, Isolation Forest) are open implementations
 from `numpy`, `statsmodels`, and `scikit-learn` respectively. The

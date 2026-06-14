@@ -18,7 +18,7 @@ export default function Recommendations() {
     return (
       <div>
         <SectionTitle icon={Lightbulb} title="Cost-optimization recommendations" />
-        <Card><CardBody><div className="py-8 text-center text-sm text-muted-foreground">No optimization candidates — workload is already tight.</div></CardBody></Card>
+        <Card><CardBody><div className="py-8 text-center text-sm text-muted-foreground">No optimization candidates - workload is already tight.</div></CardBody></Card>
       </div>
     );
 
@@ -32,7 +32,7 @@ export default function Recommendations() {
       <SectionTitle
         icon={Lightbulb}
         title="Cost-optimization recommendations"
-        subtitle="Independent of anomalies — heuristics scan the CUR for the most common FinOps wins."
+        subtitle="Independent of anomalies - heuristics scan the CUR for the most common FinOps wins."
       />
       <div className="grid grid-cols-3 gap-3">
         <Card><CardBody><div className="text-xs text-muted-foreground">Findings</div><div className="mt-1 text-2xl font-semibold">{recs.length}</div></CardBody></Card>

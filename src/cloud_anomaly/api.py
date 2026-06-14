@@ -251,14 +251,14 @@ def build_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) 
 def _assemble_snapshot(
     cur_df: pd.DataFrame, labels_df: pd.DataFrame, meta_extra: dict[str, Any]
 ) -> dict[str, Any]:
-    """Build the full snapshot from any (cur_df, labels_df) — synthetic or an
+    """Build the full snapshot from any (cur_df, labels_df) - synthetic or an
     uploaded real CUR. `labels_df` may be empty (uploaded data has no ground
     truth), in which case every evaluation view degrades gracefully."""
     long = aggregate_by_service(cur_df)
     daily = aggregate_daily(cur_df)
     dataset_days = int(long["date"].nunique())
 
-    # Run the three base detectors once, then derive the ensemble from them —
+    # Run the three base detectors once, then derive the ensemble from them -
     # otherwise the ensemble re-runs Isolation Forest (the slow one) a 2nd time.
     base = {name: DETECTORS[name](long) for name in ("zscore", "stl", "iforest") if name in DETECTORS}
     detections = {}
@@ -385,7 +385,7 @@ def http_snapshot(scenario: str = "default", n_days: int = 90, seed: int = 42) -
 
 
 def snapshot_from_upload(cur_df: pd.DataFrame) -> dict[str, Any]:
-    """Snapshot from an uploaded real CUR — no ground-truth labels exist, so
+    """Snapshot from an uploaded real CUR - no ground-truth labels exist, so
     pass an empty (but correctly typed) labels frame."""
     labels_df = pd.DataFrame(
         {
@@ -413,7 +413,7 @@ async def http_upload(file: UploadFile = File(...)) -> dict[str, Any]:
     try:
         raw = pd.read_csv(io.BytesIO(content))
         cur_df = load_cur_frame(raw, source=file.filename or "upload")
-    except Exception as exc:  # noqa: BLE001 — surface parse errors to the client
+    except Exception as exc:  # noqa: BLE001 - surface parse errors to the client
         raise HTTPException(status_code=400, detail=f"Couldn't parse that CUR: {exc}")
     if cur_df.empty:
         raise HTTPException(status_code=400, detail="No usable rows in the uploaded CUR.")
@@ -427,7 +427,7 @@ def _warm_default_snapshot() -> None:
     def _go() -> None:
         try:
             build_snapshot("default", 90, 42)
-        except Exception:  # noqa: BLE001 — warm-up is best-effort
+        except Exception:  # noqa: BLE001 - warm-up is best-effort
             pass
 
     threading.Thread(target=_go, daemon=True).start()
@@ -471,5 +471,5 @@ def http_explain(req: ExplainRequest) -> dict[str, Any]:
             force_template=os.environ.get("COSTSIGHT_OFFLINE") == "1",
         )
         return {"explanation": result.text, "source": result.source}
-    except Exception:  # noqa: BLE001 — explanation is best-effort
+    except Exception:  # noqa: BLE001 - explanation is best-effort
         return {"explanation": "Explanation unavailable right now.", "source": "error"}

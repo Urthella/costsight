@@ -26,7 +26,7 @@ export default function Playbook() {
       <SectionTitle
         icon={BookOpen}
         title="Anomaly playbook"
-        subtitle="Triage runbook per anomaly type — owner, SLA, and the exact checks to run."
+        subtitle="Triage runbook per anomaly type - owner, SLA, and the exact checks to run."
       />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {Object.entries(books).map(([key, p]) => (

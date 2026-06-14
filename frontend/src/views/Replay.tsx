@@ -43,7 +43,7 @@ export default function Replay() {
       <SectionTitle
         icon={Play}
         title="Day-by-day replay"
-        subtitle="Walks the dataset one day at a time — anomalies appear as they would in real-life monitoring."
+        subtitle="Walks the dataset one day at a time - anomalies appear as they would in real-life monitoring."
       />
       <Card>
         <CardBody>

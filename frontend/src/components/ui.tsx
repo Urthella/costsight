@@ -2,18 +2,21 @@ import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "../lib/utils";
 
-// Every Card animates in (fade + lift) and lifts its shadow on hover — this is
+// Every Card animates in (fade + lift) and lifts its shadow on hover - this is
 // the "motion on every page" primitive. Honors prefers-reduced-motion.
 export function Card({
   className,
   children,
+  dataTour,
 }: {
   className?: string;
   children: ReactNode;
+  dataTour?: string;
 }) {
   const reduced = useReducedMotion();
   return (
     <motion.div
+      data-tour={dataTour}
       initial={reduced ? false : { opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}

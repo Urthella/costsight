@@ -25,7 +25,7 @@ export default function Drift() {
     return (
       <div>
         <SectionTitle icon={Waves} title="Concept drift" />
-        <Card><CardBody><div className="py-8 text-center text-sm text-muted-foreground">No baseline drift detected — workload is in a stable regime.</div></CardBody></Card>
+        <Card><CardBody><div className="py-8 text-center text-sm text-muted-foreground">No baseline drift detected - workload is in a stable regime.</div></CardBody></Card>
       </div>
     );
 
@@ -43,7 +43,7 @@ export default function Drift() {
     <div>
       <SectionTitle
         icon={Waves}
-        title="Concept drift — has the baseline itself shifted?"
+        title="Concept drift - has the baseline itself shifted?"
         subtitle="Page-Hinkley + ADWIN flag baseline shifts (gold = up, blue = down). 3D plots each event by date × service × magnitude; drag to orbit."
       />
       <Card>

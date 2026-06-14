@@ -1,6 +1,6 @@
-# costsight — Automated Cloud Cost Anomaly Detection
+# costsight - Automated Cloud Cost Anomaly Detection
 
-Project 13 · Cloud Computing · Spring 2025–2026
+Project 13 · Cloud Computing · Spring 2025-2026
 **Furkan Can Karafil · Halil Utku Demirtaş**
 
 [![CI](https://github.com/Urthella/costsight/actions/workflows/ci.yml/badge.svg)](https://github.com/Urthella/costsight/actions/workflows/ci.yml)
@@ -46,11 +46,11 @@ npm run dev                        # http://localhost:5173 (proxies /api -> :800
 
 Outputs land in `outputs/`:
 
-- `detections_{detector}.csv` — per-day detector flags + scores
-- `alerts_{detector}.{csv,json}` — severity-banded alert log
-- `attribution_{detector}.csv` — root-cause hint per alert (which region / usage_type drove the spend)
-- `comparison.csv` — Precision / Recall / F1 by anomaly type, per detector
-- `alert_quality.csv` — alert quality (true-positive rate) by severity band
+- `detections_{detector}.csv` - per-day detector flags + scores
+- `alerts_{detector}.{csv,json}` - severity-banded alert log
+- `attribution_{detector}.csv` - root-cause hint per alert (which region / usage_type drove the spend)
+- `comparison.csv` - Precision / Recall / F1 by anomaly type, per detector
+- `alert_quality.csv` - alert quality (true-positive rate) by severity band
 
 To get statistically defensible numbers (mean ± std across 25 random seeds):
 
@@ -71,7 +71,7 @@ src/cloud_anomaly/
   config.py            project constants (services, paths, severity bands)
   synthetic_data.py    AWS CUR-style data generator + ground-truth labels
   preprocessing.py     load, aggregate, pivot, gap-fill
-  detectors/           zscore, stl, iforest, ensemble — common detect(df) interface
+  detectors/           zscore, stl, iforest, ensemble - common detect(df) interface
   alerts.py            severity = deviation × duration × $impact
   attribution.py       root-cause hint per alert (region / usage_type)
   evaluation.py        Precision / Recall, alert quality, TTD,
@@ -79,7 +79,7 @@ src/cloud_anomaly/
   forecast.py          Holt-Winters per-service forecast + projection
   theoretical_scores.py proposal a-priori ratings (radar charts)
   benchmark.py         multi-seed Monte Carlo runner
-  pipeline.py          run() — wires everything together
+  pipeline.py          run() - wires everything together
   api.py               FastAPI: /api/snapshot (full bundle) + scenarios/perf/explain
 frontend/              React + Vite + TS + Tailwind + Plotly web app (19 views:
                        summary / cost trend / calendar / alert log / root-cause /
@@ -143,7 +143,7 @@ Mean ± std across **25 random seeds** (`python scripts/run_benchmark.py
 
 ### Headline takeaways
 
-- **No single method wins all anomaly types** — the central thesis of the
+- **No single method wins all anomaly types** - the central thesis of the
   project is empirically supported.
 - **STL** is the strongest overall detector and handles trend-based
   anomalies (drift, level shift) cleanly.
@@ -151,7 +151,7 @@ Mean ± std across **25 random seeds** (`python scripts/run_benchmark.py
   drift and level shifts, exactly as expected from a stationary baseline.
 - **Isolation Forest** catches every point spike (recall = 1.0 there) but
   struggles to flag persistent shifts because they look "in distribution"
-  once they stabilise — a known limitation of unsupervised tree models on
+  once they stabilise - a known limitation of unsupervised tree models on
   univariate cost data.
 
 ## Root-cause attribution
@@ -170,7 +170,7 @@ contributed most to the anomaly delta. Available in
 and on the dashboard's *Root-cause* tab.
 
 This is a Level-1-friendly take on the Level-2 "root-cause attribution"
-deliverable — concise, deterministic, and immediately useful for FinOps
+deliverable - concise, deterministic, and immediately useful for FinOps
 triage.
 
 ## Running tests
@@ -184,11 +184,11 @@ pytest -q
 The frontend is a static bundle and the backend is a stateless API, so they
 deploy independently:
 
-1. **Backend** — containerize with the included `Dockerfile` (serves
+1. **Backend** - containerize with the included `Dockerfile` (serves
    `uvicorn cloud_anomaly.api:app` on :8000) and run it anywhere (ECS, Cloud
    Run, Fly.io, Render). See
    [`REPORT.md` § Cloud architecture](REPORT.md#cloud-architecture-production-path).
-2. **Frontend** — `cd frontend && npm run build` produces `frontend/dist/`,
+2. **Frontend** - `cd frontend && npm run build` produces `frontend/dist/`,
    a static site deployable to Vercel / Netlify / S3+CloudFront / GitHub Pages.
    Set `VITE_API_URL` to the deployed API origin at build time; in dev it
    proxies `/api` to `:8000` automatically.
@@ -201,9 +201,9 @@ docker compose up --build          # web app on :8080, REST API on :8000
 
 Two services off the compose file:
 
-- `api` — FastAPI (`http://localhost:8000`, OpenAPI at `/docs`); mounts
+- `api` - FastAPI (`http://localhost:8000`, OpenAPI at `/docs`); mounts
   `./data` and `./outputs` so artifacts survive restarts.
-- `frontend` — the React app built and served by nginx (`http://localhost:8080`),
+- `frontend` - the React app built and served by nginx (`http://localhost:8080`),
   which proxies `/api` to the `api` service.
 
 ### REST API (FastAPI)
@@ -304,7 +304,7 @@ forecast / carbon / drift / recommendations / tagging / AI-explain / lab /
 replay / …) over a FastAPI backend, and statistical significance tests.
 Phase 2 (post-finals): 3D/animation layer, comparison report extension,
 paper-style writeup. Out of scope: real-time streaming and *automated*
-multi-cloud ingestion — GCP/Azure billing is covered as a documented schema
+multi-cloud ingestion - GCP/Azure billing is covered as a documented schema
 mapping ([REPORT.md § 4.2](REPORT.md)), not a live adapter; only AWS CUR is
 wired end-to-end. Production deployment of the detection pipeline stays batch
 (the web app and REST API are deployable; the pipeline is not a streaming
@@ -312,7 +312,7 @@ service).
 
 ## License
 
-[MIT](LICENSE) — see also [CONTRIBUTING.md](CONTRIBUTING.md) for how to
+[MIT](LICENSE) - see also [CONTRIBUTING.md](CONTRIBUTING.md) for how to
 extend the project with new detectors or anomaly types.
 
 ## Authors

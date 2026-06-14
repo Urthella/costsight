@@ -38,7 +38,7 @@ export default function Budget() {
       <SectionTitle
         icon={Wallet}
         title="What-if budget tracker"
-        subtitle="Set a monthly budget and compare it against the forecast-driven projection. 3D shows per-service spend — red towers exceed an equal share of the budget."
+        subtitle="Set a monthly budget and compare it against the forecast-driven projection. 3D shows per-service spend - red towers exceed an equal share of the budget."
       />
       <Card>
         <CardBody>

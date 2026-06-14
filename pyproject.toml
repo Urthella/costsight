@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "costsight"
 version = "1.0.0"
-description = "Automated cloud cost anomaly detection — Z-Score + STL + Isolation Forest + Ensemble, with severity, root-cause attribution, forecasting, and carbon translation."
+description = "Automated cloud cost anomaly detection - Z-Score + STL + Isolation Forest + Ensemble, with severity, root-cause attribution, forecasting, and carbon translation."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"

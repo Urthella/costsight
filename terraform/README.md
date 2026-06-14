@@ -1,4 +1,4 @@
-# costsight — Terraform IaC
+# costsight - Terraform IaC
 
 This directory provisions the production-path architecture documented
 in [REPORT.md § 4.1](../REPORT.md#cloud-architecture-production-path).
@@ -15,7 +15,7 @@ resource here.
 | Alert fan-out | `aws_sns_topic.alerts` (+ optional email subscription) |
 | Ingest Lambda | `aws_lambda_function.ingest` + IAM role + S3 trigger |
 | Detection cluster | `aws_ecs_cluster.detection` + nightly EventBridge schedule |
-| Dashboard cluster (optional) | `aws_ecs_cluster.dashboard` — only if `enable_dashboard_ecs = true` |
+| Dashboard cluster (optional) | `aws_ecs_cluster.dashboard` - only if `enable_dashboard_ecs = true` |
 
 ## Usage
 
@@ -27,7 +27,7 @@ terraform apply -var="env=dev" -var="alert_email=you@example.com"
 ```
 
 Outputs include the S3 bucket names, DynamoDB table name, and the
-SNS topic ARN — those are what you wire CUR ingest into (point AWS's
+SNS topic ARN - those are what you wire CUR ingest into (point AWS's
 CUR delivery at the `cur_raw` bucket and subscribe additional
 endpoints to the alerts topic).
 
@@ -35,17 +35,17 @@ endpoints to the alerts topic).
 
 `aws_region` defaults to `us-west-2` because its grid is one of the
 cleanest AWS regions outside of Europe. For absolute lowest-carbon
-deploys consider `eu-west-3` (Paris — French nuclear) or `eu-north-1`
-(Stockholm — Swedish hydro). See the *Carbon* tab in the dashboard
+deploys consider `eu-west-3` (Paris - French nuclear) or `eu-north-1`
+(Stockholm - Swedish hydro). See the *Carbon* tab in the dashboard
 for the cross-region comparison.
 
 ## Toggles
 
-- `enable_ingest_lambda` — set to `false` if you're feeding the
+- `enable_ingest_lambda` - set to `false` if you're feeding the
   aggregated bucket by hand or from a non-AWS source.
-- `enable_detection` — set to `false` if you're running the
+- `enable_detection` - set to `false` if you're running the
   detector locally and only want the storage/alert infrastructure.
-- `enable_dashboard_ecs` — set to `true` if you'd rather self-host
+- `enable_dashboard_ecs` - set to `true` if you'd rather self-host
   the Streamlit dashboard on ECS Fargate instead of using
   Streamlit Cloud (free tier).
 

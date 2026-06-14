@@ -29,7 +29,7 @@ export default function Perf() {
     <div>
       <SectionTitle
         icon={Zap}
-        title="Detector performance — measured runtime"
+        title="Detector performance - measured runtime"
         subtitle="Throughput across dataset sizes. Heights are log10(rows/sec) so Isolation Forest (~100/s) and Z-Score (~80k/s) are both visible."
       />
       {isLoading && <div className="animate-pulse text-sm text-muted-foreground">Benchmarking detectors…</div>}

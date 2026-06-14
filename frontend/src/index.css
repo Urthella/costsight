@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Data-dense analytics palette (ui-ux-pro-max): blue primary + amber accent,
-   soft off-white background — same tokens we tuned the Streamlit app to. */
+   soft off-white background - same tokens we tuned the Streamlit app to. */
 @theme {
   --color-background: #f8fafc;
   --color-foreground: #0f172a;

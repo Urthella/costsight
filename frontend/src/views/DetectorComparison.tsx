@@ -42,7 +42,7 @@ export default function DetectorComparison() {
       <SectionTitle
         icon={BarChart3}
         title="Detector comparison"
-        subtitle="F1 per anomaly type across detectors — no single detector wins everywhere. Drag the 3D chart to orbit."
+        subtitle="F1 per anomaly type across detectors - no single detector wins everywhere. Drag the 3D chart to orbit."
       />
       {!hasTruth && (
         <div className="mb-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">

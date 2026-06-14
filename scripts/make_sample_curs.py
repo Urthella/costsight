@@ -1,7 +1,7 @@
 """Generate realistic AWS CUR-format sample CSVs from the synthetic generator.
 
 These give the dashboard's "Upload AWS CUR (.csv)" button demo-ready test
-files of meaningful size across several anomaly scenarios — handy when a
+files of meaningful size across several anomaly scenarios - handy when a
 reviewer asks to try the tool on different data.
 
 Run:

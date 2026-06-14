@@ -33,5 +33,5 @@ jobs:
       - name: Publish to PyPI (trusted publishing)
         # Configure trusted publishing on pypi.org: account → "Add a new pending publisher"
         # github repo = Urthella/costsight, workflow = release.yml, environment = (none).
-        # Until then, this step will fail loudly — switch to `password: ${{ secrets.PYPI_API_TOKEN }}` if needed.
+        # Until then, this step will fail loudly - switch to `password: ${{ secrets.PYPI_API_TOKEN }}` if needed.
         uses: pypa/gh-action-pypi-publish@release/v1

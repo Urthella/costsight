@@ -99,7 +99,7 @@ export function Sidebar() {
               <span className="truncate">{uploadName ?? "uploaded CUR"}</span>
             </div>
             <div className="mt-1 text-[11px] text-muted-foreground">
-              Real data — Detector comparison stays blank (no labels).
+              Real data - Detector comparison stays blank (no labels).
             </div>
             <button
               onClick={() => setUploaded(null)}

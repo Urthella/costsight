@@ -18,7 +18,7 @@ const FACES = [
   [3, 7, 4], [3, 4, 0], // left
 ];
 
-/** Combine many cuboids into one mesh3d trace — a 3D bar chart. */
+/** Combine many cuboids into one mesh3d trace - a 3D bar chart. */
 export function bars3dTrace(bars: Bar3D[], w = 0.32, d = 0.32): Record<string, unknown> {
   const X: number[] = [], Y: number[] = [], Z: number[] = [];
   const I: number[] = [], J: number[] = [], K: number[] = [], FC: string[] = [];

@@ -25,7 +25,7 @@ export default function Forecast() {
   const services = data.meta.services;
   const all = data.forecast as unknown as FRow[];
 
-  // 3D: every service as a ribbon at its own depth — history solid, forecast dotted.
+  // 3D: every service as a ribbon at its own depth - history solid, forecast dotted.
   const traces3d: Record<string, unknown>[] = [];
   services.forEach((s, i) => {
     const rows = all.filter((r) => r.service === s);

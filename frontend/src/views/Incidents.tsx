@@ -11,13 +11,13 @@ export default function Incidents() {
       <SectionTitle
         icon={Network}
         title="Incidents"
-        subtitle="DBSCAN groups close-in-time alerts into incidents — rows become triageable events."
+        subtitle="DBSCAN groups close-in-time alerts into incidents - rows become triageable events."
       />
       <Card>
         <CardBody>
           <DataTable
             rows={data.incidents}
-            empty="No multi-alert incidents — every alert is a singleton."
+            empty="No multi-alert incidents - every alert is a singleton."
             columns={[
               { key: "incident_id", label: "ID" },
               { key: "n_alerts", label: "Alerts", align: "right" },

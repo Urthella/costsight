@@ -81,10 +81,10 @@ export default function Summary() {
         subtitle={`${data.meta.scenario} · ${data.meta.dataset_days} days · ${data.meta.n_services} services`}
       />
 
-      <Card className="mb-3">
+      <Card className="mb-3" dataTour="skyline">
         <CardBody>
           <div className="mb-1 text-sm font-medium">
-            Spend landscape — drag to orbit, hover a tower
+            Spend landscape - drag to orbit, hover a tower
           </div>
           <Suspense
             fallback={<div className="h-[320px] animate-pulse rounded-lg bg-muted" />}
@@ -94,7 +94,7 @@ export default function Summary() {
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-tour="highlights">
         <Card>
           <CardBody>
             <div className="text-xs text-muted-foreground">Distinct anomalies</div>
@@ -125,7 +125,7 @@ export default function Summary() {
           <CardBody>
             <div className="text-xs text-muted-foreground">Top savings</div>
             <div className="mt-1 text-3xl font-semibold text-primary">
-              {rec ? `${usd(rec.impact_usd_per_month)}/mo` : "—"}
+              {rec ? `${usd(rec.impact_usd_per_month)}/mo` : "-"}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
               {rec ? `${rec.category} · ${rec.service}` : "no candidates"}
@@ -135,7 +135,7 @@ export default function Summary() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2" dataTour="incidents">
           <CardBody>
             <div className="mb-2 text-sm font-medium">Highest-severity incidents</div>
             <div className="overflow-x-auto">
@@ -166,14 +166,14 @@ export default function Summary() {
             </div>
           </CardBody>
         </Card>
-        <Card>
+        <Card dataTour="severity">
           <CardBody>
             <div className="mb-3 text-sm font-medium">Severity mix</div>
             {(() => {
               const tot = mix.HIGH + mix.MEDIUM + mix.LOW || 1;
               const h = (mix.HIGH / tot) * 100;
               const m = (mix.MEDIUM / tot) * 100;
-              // Lightweight CSS donut — keeps Plotly (4.5 MB) off the landing view.
+              // Lightweight CSS donut - keeps Plotly (4.5 MB) off the landing view.
               const gradient = `conic-gradient(#dc2626 0 ${h}%, #d97706 ${h}% ${h + m}%, #2563eb ${h + m}% 100%)`;
               return (
                 <div className="flex items-center gap-5">
@@ -200,7 +200,7 @@ export default function Summary() {
       </div>
 
       {rec && (
-        <Card className="mt-4">
+        <Card className="mt-4" dataTour="recommendation">
           <CardBody>
             <div className="text-sm font-medium text-primary">
               Recommended next action

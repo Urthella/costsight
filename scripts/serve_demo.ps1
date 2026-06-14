@@ -1,4 +1,4 @@
-# Presentation mode — the rock-solid way to run costsight for a live demo.
+# Presentation mode - the rock-solid way to run costsight for a live demo.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts/serve_demo.ps1
 #
@@ -7,7 +7,7 @@
 #     recompiles, no dep-optimizer hiccups mid-demo),
 #   * runs uvicorn WITHOUT --reload (no file-watch restarts),
 #   * sets COSTSIGHT_OFFLINE=1 so AI Explain uses the deterministic template
-#     (zero network calls — nothing to hang on venue wifi),
+#     (zero network calls - nothing to hang on venue wifi),
 #   * pre-warms the snapshot cache for the demo scenarios (no cold waits),
 #   * opens the browser when everything is ready.
 $ErrorActionPreference = "Stop"
