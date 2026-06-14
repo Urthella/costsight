@@ -61,12 +61,11 @@ Cost anomalies need to be detected in **hours**, not weeks.
 ## Our Solution — End-to-End Pipeline
 
 ```
-Synthetic AWS CUR  ─►  Preprocessing  ─►  Three detectors  ─►  Alerts  ─►  Dashboard
-                                          • Z-Score
-                                          • STL Decomposition          severity =
-                                          • Isolation Forest           deviation
-                                                                       × duration
-                                                                       × $impact
+AWS CUR (synthetic ─►  Preprocessing ─► Detectors ─► Alerts ─► FastAPI ─► React app
+ or your upload)                       • Z-Score
+                                       • STL Decomposition       severity =
+                                       • Isolation Forest        deviation
+                                       • Ensemble (≥2 vote)      × duration × $impact
 ```
 
 **Outcome:** a practical FinOps tool that catches anomalies in hours, with
@@ -111,8 +110,9 @@ compute Precision/Recall:
 | **STL** | Time-series decomposition | Handles seasonality, drift, level shift |
 | **Isolation Forest** | ML / ensemble | Multi-feature anomalies, no labels needed |
 
-Each detector exposes the same `detect(df)` interface — alerts and
-evaluation are **detector-agnostic**.
+A fourth **Ensemble** detector takes a ≥2-of-3 consensus vote. Each detector
+exposes the same `detect(df)` interface — alerts and evaluation are
+**detector-agnostic**.
 
 ---
 
@@ -183,30 +183,55 @@ FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
 
 ---
 
+## The Web App — 3D-forward, run on *your* data
+
+A **React** single-page app over a **FastAPI** backend: one cached
+`/api/snapshot` fans out across **19 views** in five groups.
+
+- **3D by default** — detector comparison, cost surface, forecast ribbons,
+  carbon, drift and a WebGL **3D explorer** (drag to orbit); every chart has a
+  **3D｜2D toggle** for precise reading
+- **Run on your bill** — drag-and-drop an **AWS CUR `.csv`** and every view
+  recomputes on real data
+- **Guided tour** introduces the layout on first open; motion everywhere,
+  with `prefers-reduced-motion` honored
+- **Fast** — server-side snapshot caching + warm-up (~0.2 s loads), code-split
+  bundles (WebGL loads only where needed)
+
+> Clean API/UI split: the same backend serves the app, the REST API, and a
+> Terraform-deployable production path.
+
+---
+
 ## Tech Stack
 
-- **Python 3.11+** — language
-- **pandas / NumPy / PyArrow** — data processing
-- **statsmodels** — STL Decomposition
-- **scikit-learn** — Isolation Forest
-- **SciPy** — statistics primitives
-- **Streamlit / Plotly / Matplotlib** — dashboard + figures
-- **GitHub Actions** — CI on Python 3.11 and 3.12
+**Backend** — Python 3.11+
 
-> One install (`pip install -r requirements.txt`), one command
-> (`python scripts/run_pipeline.py`), every result reproducible.
+- **pandas / NumPy / PyArrow** — data processing
+- **statsmodels** (STL) · **scikit-learn** (Isolation Forest) · **SciPy** (stats)
+- **FastAPI / uvicorn** — REST API (`/api/snapshot`)
+
+**Frontend** — React 19 + Vite + TypeScript
+
+- **Plotly.js** (2D + 3D charts) · **React Three Fiber / three.js** (WebGL)
+- **Tailwind v4** · **Framer Motion** (animation) · **TanStack Query**
+
+**Ops** — GitHub Actions CI (Python 3.11/3.12 + frontend build) · Docker · Terraform
+
+> Backend: `uvicorn cloud_anomaly.api:app`. Frontend: `npm run dev`.
+> Or the whole stack: `docker compose up`.
 
 ---
 
 ## Achieved Deliverables
 
-- **Working Python pipeline** — 3 detectors, all green on CI
+- **Working Python pipeline** — 4 detectors, 21 tests green on CI
 - **Automated alert system** — JSON + CSV, severity-banded
 - **Root-cause hints** — *"us-east-1 region drove 100% of the increase"*
-- **Live Streamlit dashboard** — 5 tabs incl. root-cause + comparison
+- **React web app over FastAPI** — 19 views, 3D charts, guided tour, live AWS CUR upload
 - **Documented GitHub repo** — README, REPORT, DEMO, examples, MIT license
 - **Multi-seed benchmark** — 25 seeds, mean ± std reported
-- **Demo video** — 2-minute walkthrough of the dashboard
+- **Demo video** — 2.5-minute walkthrough of the web app
 
 ---
 
@@ -214,7 +239,7 @@ FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
 
 | Limitation | Future direction |
 |---|---|
-| Synthetic data only | Onboard anonymized real CUR exports |
+| Manual CUR upload (batch) | Automated continuous ingestion (S3 → Lambda) |
 | Univariate per service | Multi-feature & multi-granularity (account/region/tag) |
 | Batch-only execution | Streaming via Kafka / Kinesis |
 | Heuristic severity formula | Learn band thresholds from FinOps feedback |
@@ -232,7 +257,7 @@ FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
 - **Halil Utku Demirtaş** — CUR generator, preprocessing, alert module,
   Precision / Recall framework, system architecture
 - **Furkan Can Karafil** — STL implementation, Isolation Forest model,
-  Z-Score baseline, Streamlit dashboard, comparative analysis
+  Z-Score baseline, React web app + FastAPI, comparative analysis
 - **Joint** — GitHub repo, CI, multi-seed benchmark, technical report,
   slide deck, demo video
 

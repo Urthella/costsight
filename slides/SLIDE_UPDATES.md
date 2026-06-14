@@ -96,7 +96,7 @@ Phase 2 is not a hard split anymore — both teammates touched both halves.
 Suggest collapsing into a **"Joint Phase 2 Contributions"** box, e.g.:
 
 > **Halil & Furkan**
-> CUR generator · 3 detectors · alert module · Streamlit dashboard ·
+> CUR generator · 4 detectors · alert module · React web app + FastAPI ·
 > Precision/Recall framework · GitHub repo + CI · demo video
 
 If the rubric requires a strict split, keep Phase 1 split as-is and add
@@ -108,9 +108,9 @@ If the rubric requires a strict split, keep Phase 1 split as-is and add
 
 Re-title to **"Achieved Deliverables (Phase 1)"** and check off:
 
-- ✅ Working Python pipeline (3 detectors, all green on CI)
+- ✅ Working Python pipeline (4 detectors, 21 tests green on CI)
 - ✅ Automated alert system (JSON + CSV, severity bands)
-- ✅ Live Streamlit dashboard (4 tabs, screenshot in slide 16-bonus)
+- ✅ React web app over FastAPI (19 views, 3D charts, guided tour, CUR upload)
 - ✅ Documented GitHub repo: <https://github.com/Urthella/costsight>
 - ✅ Demo video (link via QR code on the closing slide)
 - ✅ Comparison report (Phase 2 numbers integrated above)
