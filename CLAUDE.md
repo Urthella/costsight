@@ -108,7 +108,8 @@ synthetic_data.generate(scenario=...)           # or cur_loader.load_cur_csv() f
 
 - [`README.md`](README.md) — quick-start, install-as-library, Docker, frontend build + API deploy steps.
 - [`REPORT.md`](REPORT.md) — full technical report. § 3.5 (statistical significance), § 4.1 (cloud architecture diagram), § 4.2 (multi-cloud schema mapping).
-- [`DEMO.md`](DEMO.md) — 2-minute timed demo-video script.
+- [`DEMO.md`](DEMO.md) — 2.5-minute timed demo-video script.
+- [`PRESENTATION.md`](PRESENTATION.md) — presentation-day map: slide↔demo timeline, role split, Q&A bank, pre-flight checklist, fallback plan.
 - [`slides/deck.md`](slides/deck.md) — Marp slide deck; `slides/deck.html` is the current rendered build. Regenerate a PDF with `npx @marp-team/marp-cli slides/deck.md --pdf -o slides/deck.pdf` (needs a local Chrome/Edge).
 - [`terraform/README.md`](terraform/README.md) — how to `terraform init/plan/apply` the production architecture into AWS.
 - [`notebooks/01_walkthrough.ipynb`](notebooks/01_walkthrough.ipynb) — end-to-end notebook reproducing every view in static form.
