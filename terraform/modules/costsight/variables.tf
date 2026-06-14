@@ -4,7 +4,7 @@ variable "env" {
 }
 
 variable "aws_region" {
-  description = "AWS region — prefer low-carbon (us-west-2 / eu-west-3 / eu-north-1) where workload latency allows."
+  description = "AWS region - prefer low-carbon (us-west-2 / eu-west-3 / eu-north-1) where workload latency allows."
   type        = string
 }
 

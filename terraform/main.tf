@@ -1,4 +1,4 @@
-# costsight — Terraform root module
+# costsight - Terraform root module
 #
 # Implements the production-path architecture documented in
 # REPORT.md § 4.1: S3 raw bucket → Lambda ingest → Aggregated parquet
@@ -13,7 +13,7 @@
 #
 # This is a *real, working* IaC pulled directly from the architecture
 # diagram. The actual Python lambdas and ECS task definitions are
-# referenced as artifacts in this account's ECR / S3 — for the
+# referenced as artifacts in this account's ECR / S3 - for the
 # academic demo we use the publicly-readable defaults.
 
 terraform {

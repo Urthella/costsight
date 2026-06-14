@@ -110,7 +110,7 @@ Re-title to **"Achieved Deliverables (Phase 1)"** and check off:
 
 - ✅ Working Python pipeline (4 detectors, 21 tests green on CI)
 - ✅ Automated alert system (JSON + CSV, severity bands)
-- ✅ React web app over FastAPI (19 views, 3D charts, guided tour, CUR upload)
+- ✅ React web app over FastAPI (20 views, 3D charts, guided tour, CUR upload)
 - ✅ Documented GitHub repo: <https://github.com/Urthella/costsight>
 - ✅ Demo video (link via QR code on the closing slide)
 - ✅ Comparison report (Phase 2 numbers integrated above)

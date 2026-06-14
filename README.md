@@ -81,7 +81,7 @@ src/cloud_anomaly/
   benchmark.py         multi-seed Monte Carlo runner
   pipeline.py          run() - wires everything together
   api.py               FastAPI: /api/snapshot (full bundle) + scenarios/perf/explain
-frontend/              React + Vite + TS + Tailwind + Plotly web app (19 views:
+frontend/              React + Vite + TS + Tailwind + Plotly web app (20 views:
                        summary / cost trend / calendar / alert log / root-cause /
                        detector comparison / incidents / drift / forecast / budget /
                        recommendations / playbook / carbon / tagging / AI explain /
@@ -299,7 +299,7 @@ Steady-state cost ~$5/mo per tenant at the default toggles.
 
 Phase 1 (May 20 deadline): synthetic data **and real AWS CUR ingestion**,
 three detectors plus an ensemble vote, alert module, root-cause attribution,
-P/R evaluation, multi-seed benchmark, a **19-view React web app** (summary /
+P/R evaluation, multi-seed benchmark, a **20-view React web app** (summary /
 forecast / carbon / drift / recommendations / tagging / AI-explain / lab /
 replay / …) over a FastAPI backend, and statistical significance tests.
 Phase 2 (post-finals): 3D/animation layer, comparison report extension,

@@ -55,7 +55,7 @@ say so, it's the honest answer.)
 
 - **Architecture:** Python backend (`src/cloud_anomaly/`, 24 modules) behind a
   FastAPI app; the React frontend fetches one cached `/api/snapshot` per
-  (scenario, days, seed) and fans it out across 19 views. Clean API/UI split.
+  (scenario, days, seed) and fans it out across 20 views. Clean API/UI split.
 - **Detector contract:** every detector exposes `detect(long_df)` returning
   `date, service, cost, score, is_anomaly` - adding one is a strict extension.
 - **Severity** = deviation × duration × dollar_impact → LOW / MEDIUM / HIGH.

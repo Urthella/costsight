@@ -126,7 +126,7 @@ A **React** single-page app (`frontend/`, Vite + TypeScript + Tailwind +
 Plotly + React Three Fiber) backed by a **FastAPI** service
 (`src/cloud_anomaly/api.py`). The frontend fetches one cached
 `GET /api/snapshot` per (scenario, days, seed) and fans it out across
-**19 views** grouped into five sections (Overview, Detection, FinOps,
+**20 views** grouped into five sections (Overview, Detection, FinOps,
 Sustainability, Lab & Data): an executive summary with a 3D spend
 skyline; cost trend, calendar and a dedicated 3D explorer; alert log;
 **root-cause attribution** with one-line hints; detector comparison
@@ -258,7 +258,7 @@ src/cloud_anomaly/
 ├── pipeline.py          run() - wires everything together
 └── api.py               FastAPI: /api/snapshot + scenarios/perf/explain/upload
 
-frontend/                React + Vite + TS + Tailwind + Plotly + R3F (19 views)
+frontend/                React + Vite + TS + Tailwind + Plotly + R3F (20 views)
 legacy/                  archived Streamlit app (pre-React; tag streamlit-v1)
 scripts/
 ├── run_pipeline.py      CLI: full pipeline → outputs/
@@ -383,9 +383,10 @@ code path runs unchanged on AWS, GCP, and Azure data**.
 
 Real-CUR ingestion is implemented today in
 [`src/cloud_anomaly/cur_loader.py`](src/cloud_anomaly/cur_loader.py).
-A redacted public-shape sample is committed at
-[`examples/aws_cur_sample.csv`](examples/aws_cur_sample.csv) so the
-loader can be exercised end-to-end without an AWS account:
+A public-shape sample is committed at
+[`examples/aws_cur_sample.csv`](examples/aws_cur_sample.csv) (a 90-day
+spike-storm CUR) so the loader can be exercised end-to-end without an AWS
+account:
 
 ```python
 from cloud_anomaly.cur_loader import load_cur_csv

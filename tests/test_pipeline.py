@@ -104,7 +104,10 @@ def test_notification_payload():
 def test_real_cur_loader():
     from cloud_anomaly.cur_loader import load_cur_csv
 
-    sample = ROOT / "examples" / "aws_cur_sample.csv"
+    # Hand-crafted 4-day CUR with a known EC2 spike on 2025-04-03. (The headline
+    # examples/aws_cur_sample.csv is now a rich 90-day file for the demo upload,
+    # so the loader regression fixture lives here under its own name.)
+    sample = ROOT / "examples" / "cur_loader_fixture.csv"
     long = load_cur_csv(sample)
     assert {
         "date", "service", "region", "usage_type", "cost",

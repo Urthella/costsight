@@ -1,4 +1,4 @@
-# costsight — root module implementation.
+# costsight - root module implementation.
 # All resources are conditionally created via count = X ? 1 : 0 so the
 # stack can be brought up incrementally (dev → staging → prod).
 
@@ -7,7 +7,7 @@ locals {
 }
 
 # ---------------------------------------------------------------------------
-# S3 — Raw CUR landing zone + aggregated parquet store
+# S3 - Raw CUR landing zone + aggregated parquet store
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "cur_raw" {
@@ -46,7 +46,7 @@ resource "aws_s3_bucket" "aggregated" {
 }
 
 # ---------------------------------------------------------------------------
-# DynamoDB — alerts table
+# DynamoDB - alerts table
 # ---------------------------------------------------------------------------
 
 resource "aws_dynamodb_table" "alerts" {
@@ -78,7 +78,7 @@ resource "aws_dynamodb_table" "alerts" {
 }
 
 # ---------------------------------------------------------------------------
-# SNS — alert fan-out topic
+# SNS - alert fan-out topic
 # ---------------------------------------------------------------------------
 
 resource "aws_sns_topic" "alerts" {
@@ -94,7 +94,7 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 # ---------------------------------------------------------------------------
-# Ingest Lambda — fires on S3 PutObject in cur_raw bucket
+# Ingest Lambda - fires on S3 PutObject in cur_raw bucket
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_role" "ingest_lambda" {
@@ -191,7 +191,7 @@ resource "aws_lambda_permission" "ingest_s3" {
 }
 
 # ---------------------------------------------------------------------------
-# Detection — ECS Fargate task triggered nightly by EventBridge
+# Detection - ECS Fargate task triggered nightly by EventBridge
 # ---------------------------------------------------------------------------
 
 resource "aws_ecs_cluster" "detection" {
@@ -214,7 +214,7 @@ resource "aws_cloudwatch_event_rule" "nightly_detection" {
 }
 
 # (ECS task definition + EventBridge target wiring would follow here in
-# a production module — left out to keep the placeholder buildable.)
+# a production module - left out to keep the placeholder buildable.)
 
 # ---------------------------------------------------------------------------
 # Optional dashboard ECS service

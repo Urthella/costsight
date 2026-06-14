@@ -20,5 +20,5 @@ output "alerts_topic" {
 
 output "dashboard_url" {
   description = "Public URL of the Streamlit dashboard (only if dashboard_ecs enabled)."
-  value       = var.enable_dashboard_ecs ? "to-be-populated-after-load-balancer-attaches" : "(dashboard_ecs disabled — use Streamlit Cloud)"
+  value       = var.enable_dashboard_ecs ? "to-be-populated-after-load-balancer-attaches" : "(dashboard_ecs disabled - use Streamlit Cloud)"
 }

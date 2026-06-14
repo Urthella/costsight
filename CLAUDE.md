@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project context
 
-**costsight** - Project 13, Cloud Computing (Spring 2025-2026). An end-to-end cloud-cost anomaly detector with severity scoring, root-cause attribution, forecasting, carbon translation, and a 19-view **React** web app (Vite + TypeScript + Tailwind + Plotly) served over a **FastAPI** backend. Two-person student project (Halil Utku Demirtaş + Furkan Can Karafil); Phase 1 demo deadline **2026-05-20**.
+**costsight** - Project 13, Cloud Computing (Spring 2025-2026). An end-to-end cloud-cost anomaly detector with severity scoring, root-cause attribution, forecasting, carbon translation, and a 20-view **React** web app (Vite + TypeScript + Tailwind + Plotly) served over a **FastAPI** backend. Two-person student project (Halil Utku Demirtaş + Furkan Can Karafil); Phase 1 demo deadline **2026-05-20**.
 
 > The UI was migrated from Streamlit to React for performance and a 3D/animation roadmap. The original Streamlit app is archived under [`legacy/`](legacy/) and tagged `streamlit-v1`; do not extend it.
 
@@ -51,7 +51,7 @@ After a successful `pip install -e .` (or `pip install costsight` once released)
 
 - **One snapshot, many views.** The whole UI is driven by a single `GET /api/snapshot?scenario&n_days&seed` call (`build_snapshot` in `api.py`) cached by TanStack Query (`useSnapshot`). Adding a field to the snapshot is the way to feed a new view - don't add per-view endpoints unless the work is heavy/lazy (see `/api/perf`, `/api/explain`).
 - **Plotly via factory.** `src/lib/plot.tsx` builds the component off `plotly.js-dist-min` through `react-plotly.js/factory`. Both are CommonJS, so the imports are unwrapped with `.default ?? mod` - without that you get `createPlotlyComponent is not a function` and a blank screen.
-- **Routing = nav keys.** `src/nav.ts` is the source of truth (5 groups / 19 views, short ASCII keys + Material/Lucide icons); `App.tsx` maps each key to a view component. Theme tokens live in `src/index.css` (`@theme`, Tailwind v4).
+- **Routing = nav keys.** `src/nav.ts` is the source of truth (5 groups / 20 views, short ASCII keys + Material/Lucide icons); `App.tsx` maps each key to a view component. Theme tokens live in `src/index.css` (`@theme`, Tailwind v4).
 
 ## Architecture
 

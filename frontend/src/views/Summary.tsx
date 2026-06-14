@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Info } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
 import { Card, CardBody, SectionTitle, SeverityBadge } from "../components/ui";
 import { usd } from "../lib/utils";
@@ -80,6 +80,35 @@ export default function Summary() {
         title="Executive summary"
         subtitle={`${data.meta.scenario} · ${data.meta.dataset_days} days · ${data.meta.n_services} services`}
       />
+
+      {incidents.length === 0 && (
+        <Card className="mb-3 border-primary/30 bg-primary/5">
+          <CardBody className="flex gap-3">
+            <Info size={18} className="mt-0.5 shrink-0 text-primary" />
+            <div className="text-sm">
+              <div className="font-medium">No anomalies flagged in this window.</div>
+              {data.meta.dataset_days < 14 ? (
+                <p className="mt-1 text-muted-foreground">
+                  This report covers only {data.meta.dataset_days} days. The
+                  detectors model a weekly cycle, so they need about two weeks of
+                  history before they can separate a real anomaly from normal
+                  variation. Upload a longer report - the bundled{" "}
+                  <code className="rounded bg-muted px-1">examples/cur_default_90d.csv</code>{" "}
+                  spans 90 days - or widen the "Days of history" slider on the left.
+                </p>
+              ) : (
+                <p className="mt-1 text-muted-foreground">
+                  The spend here looks stable - no point spike, level shift or
+                  drift crossed the threshold, which is a perfectly valid result.
+                  To see the detectors light up, switch the scenario on the left to{" "}
+                  <b>spike storm</b> or <b>stealth leak</b>, or upload a report
+                  that contains known incidents.
+                </p>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       <Card className="mb-3" dataTour="skyline">
         <CardBody>

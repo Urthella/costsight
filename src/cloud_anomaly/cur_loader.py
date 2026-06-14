@@ -10,7 +10,8 @@ CSV / Parquet that AWS drops in your S3 bucket.
 Tested against:
   - Resource-level CUR ("Hourly + Resources + Tags")
   - Daily aggregated CUR
-  - The redacted public sample committed to ``examples/aws_cur_sample.csv``
+  - The hand-crafted regression fixture ``examples/cur_loader_fixture.csv``
+    (``examples/aws_cur_sample.csv`` is a richer 90-day demo upload)
 
 Usage::
 

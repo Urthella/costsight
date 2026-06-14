@@ -186,7 +186,7 @@ FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
 ## The Web App - 3D-forward, run on *your* data
 
 A **React** single-page app over a **FastAPI** backend: one cached
-`/api/snapshot` fans out across **19 views** in five groups.
+`/api/snapshot` fans out across **20 views** in five groups.
 
 - **3D by default** - detector comparison, cost surface, forecast ribbons,
   carbon, drift and a WebGL **3D explorer** (drag to orbit); every chart has a
@@ -228,7 +228,7 @@ A **React** single-page app over a **FastAPI** backend: one cached
 - **Working Python pipeline** - 4 detectors, 21 tests green on CI
 - **Automated alert system** - JSON + CSV, severity-banded
 - **Root-cause hints** - *"us-east-1 region drove 100% of the increase"*
-- **React web app over FastAPI** - 19 views, 3D charts, guided tour, live AWS CUR upload
+- **React web app over FastAPI** - 20 views, 3D charts, guided tour, live AWS CUR upload
 - **Documented GitHub repo** - README, REPORT, DEMO, examples, MIT license
 - **Multi-seed benchmark** - 25 seeds, mean ± std reported
 - **Demo video** - 2.5-minute walkthrough of the web app
