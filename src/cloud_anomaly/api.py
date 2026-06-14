@@ -18,6 +18,7 @@ Endpoints:
 from __future__ import annotations
 
 import io
+import os
 import threading
 from functools import lru_cache
 from pathlib import Path
@@ -461,5 +462,14 @@ def http_explain(req: ExplainRequest) -> dict[str, Any]:
         "severity": req.severity, "cost": req.cost, "flagged_by": req.flagged_by,
     }
     attr_row = {"top_dimension": req.top_dimension, "top_value": req.top_value}
-    text = explain_alert(alert_row, attr_row)
-    return {"explanation": text}
+    # COSTSIGHT_OFFLINE=1 forces the deterministic template (no network) so a
+    # live demo never hangs on the API; explain_alert also self-falls-back on
+    # any Anthropic error. Never let this 500 the AI Explain view.
+    try:
+        result = explain_alert(
+            alert_row, attr_row, pd.DataFrame(),
+            force_template=os.environ.get("COSTSIGHT_OFFLINE") == "1",
+        )
+        return {"explanation": result.text, "source": result.source}
+    except Exception:  # noqa: BLE001 — explanation is best-effort
+        return {"explanation": "Explanation unavailable right now.", "source": "error"}

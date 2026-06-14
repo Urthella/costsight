@@ -449,6 +449,25 @@ def test_api_upload_real_cur():
     assert s["ground_truth"] == []
 
 
+def test_api_explain_endpoint():
+    """POST /api/explain must return a plain-text explanation (regression:
+    it used to pass the wrong args and return an object)."""
+    from fastapi.testclient import TestClient
+    from cloud_anomaly.api import app
+
+    client = TestClient(app)
+    r = client.post("/api/explain", json={
+        "service": "EC2", "date": "2025-03-19", "severity": "HIGH",
+        "cost": 957.0, "flagged_by": "stl, iforest",
+        "top_dimension": "region", "top_value": "us-east-1",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["explanation"], str)
+    assert len(body["explanation"]) > 20
+    assert "EC2" in body["explanation"]
+
+
 def test_ensemble_reuses_base_identically():
     """The snapshot path derives the ensemble from precomputed base detectors;
     output must match the standalone ensemble (no behavioural change)."""

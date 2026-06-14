@@ -13,4 +13,12 @@ export default defineConfig({
       "/api": "http://localhost:8000",
     },
   },
+  // `vite preview` serves the production build (used for the rock-solid
+  // "presentation mode") and needs the same /api proxy.
+  preview: {
+    port: 5173,
+    proxy: {
+      "/api": "http://localhost:8000",
+    },
+  },
 });

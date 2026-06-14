@@ -56,12 +56,25 @@ Follow the script in [`DEMO.md`](DEMO.md). On stage, hit these beats:
 
 ## Phase 0 — pre-flight checklist (do this T-15 min)
 
-- [ ] Backend up: `uvicorn cloud_anomaly.api:app --port 8000` (it warms the
-      default snapshot, so the first load is instant).
-- [ ] Frontend up: `cd frontend && npm run dev` → open **http://localhost:5173**.
-      (Or `docker compose up` for both.)
-- [ ] Load the app once so chunks are cached; then `localStorage.clear()` +
-      refresh so the **tour auto-plays** live.
+**Launch in presentation mode — one command (recommended):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/serve_demo.ps1
+```
+
+This is the bulletproof path: it builds the **production** frontend and serves
+it with `vite preview` (no dev-server HMR / recompiles to glitch mid-demo),
+runs uvicorn **without `--reload`**, sets `COSTSIGHT_OFFLINE=1` so **AI Explain
+never makes a network call**, **pre-warms the cache** for the demo scenarios
+(so switching scenarios live is instant), and opens the browser when ready.
+Two PowerShell windows stay open — close them to stop. The whole app is
+**fully offline** (no CDN/font fetches), so venue wifi is irrelevant.
+
+- [ ] Ran `scripts/serve_demo.ps1`; saw **READY → http://localhost:5173**.
+      (Manual fallback: `uvicorn cloud_anomaly.api:app --port 8000` +
+      `npm --prefix frontend run preview`.)
+- [ ] Load the app once; then `localStorage.clear()` + refresh so the
+      **tour auto-plays** live.
 - [ ] Browser zoom ~110%, window maximised, dark-mode off (the app is light).
 - [ ] Have [`examples/`](examples/) open in a file explorer for the upload demo.
 - [ ] Slides ready: open **`slides/deck.html`** (or a freshly rendered
