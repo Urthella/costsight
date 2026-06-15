@@ -69,6 +69,42 @@ def page_hinkley(
     return flags
 
 
+def page_hinkley_signal(
+    series: pd.Series,
+    *,
+    delta: float = 0.005,
+    threshold: float = 50.0,
+) -> tuple[list[float], list[int]]:
+    """The decision signal behind `page_hinkley`, kept for plotting.
+
+    Returns ``(stat, flags)`` where ``stat[i]`` is the cumulative-deviation
+    statistic (``cum_sum - min_sum``) the test thresholds at step i, and
+    ``flags`` are the indices where it crossed ``threshold``. State resets
+    after each crossing - mirroring `page_hinkley` exactly - so the curve
+    and the change-points line up with the drift events.
+    """
+    stat = [0.0] * len(series)
+    flags: list[int] = []
+    if len(series) < 10:
+        return stat, flags
+    values = series.to_numpy(dtype=float)
+    mean = values[0]
+    cum_sum = 0.0
+    min_sum = 0.0
+    for i in range(1, len(values)):
+        mean = mean + (values[i] - mean) / (i + 1)
+        cum_sum += values[i] - mean - delta
+        min_sum = min(min_sum, cum_sum)
+        ph = cum_sum - min_sum
+        stat[i] = ph
+        if ph > threshold:
+            flags.append(i)
+            mean = values[i]
+            cum_sum = 0.0
+            min_sum = 0.0
+    return stat, flags
+
+
 def adwin_lite(
     series: pd.Series,
     *,
@@ -175,3 +211,31 @@ def _build_event(
         detector=detector,
         confidence=confidence,
     )
+
+
+def drift_signal(long_df: pd.DataFrame, *, threshold: float = 50.0) -> pd.DataFrame:
+    """Per-(service, date) Page-Hinkley statistic, for plotting the detector's
+    decision signal and where it fires.
+
+    Columns: service, date, ph_stat, threshold, flag. ``flag`` is True on the
+    days the statistic crossed ``threshold`` - the drift points the dashboard
+    marks on the curve. This exposes the signal `detect_drift` thresholds
+    internally so reviewers can watch the statistic build up and cross the line.
+    """
+    cols = ["service", "date", "ph_stat", "threshold", "flag"]
+    if long_df.empty:
+        return pd.DataFrame(columns=cols)
+    rows: list[dict] = []
+    for service, group in long_df.groupby("service"):
+        group = group.sort_values("date").reset_index(drop=True)
+        stat, flags = page_hinkley_signal(group["cost"], threshold=threshold)
+        flagged = set(flags)
+        for i, date in enumerate(group["date"]):
+            rows.append({
+                "service": str(service),
+                "date": pd.Timestamp(date),
+                "ph_stat": round(float(stat[i]), 2),
+                "threshold": float(threshold),
+                "flag": i in flagged,
+            })
+    return pd.DataFrame(rows, columns=cols)

@@ -31,13 +31,13 @@ from pydantic import BaseModel, Field
 
 from .alerts import build_alerts
 from .attribution import attribute
-from .carbon import carbon_footprint
+from .carbon import carbon_footprint, green_impact
 from .clustering import cluster_alerts, summarize_incidents
 from .config import RAW_DIR
 from .cur_loader import load_cur_frame
 from .detectors import DETECTORS
 from .detectors.ensemble import detect as ensemble_detect
-from .drift import detect_drift
+from .drift import detect_drift, drift_signal
 from .evaluation import (
     compare_detectors,
     cost_saved_estimate,
@@ -310,6 +310,7 @@ def _assemble_snapshot(
     } if carbon is not None else {}
 
     recs = _safe(lambda: all_recommendations(cur_df), pd.DataFrame())
+    green = _safe(lambda: green_impact(cur_df, all_alerts, recs), {})
     tagging = _safe(lambda: evaluate_tagging(cur_df), None)
     tagging_block = {
         "debt_usd": round(float(tagging.debt_usd), 2),
@@ -319,6 +320,7 @@ def _assemble_snapshot(
     } if tagging is not None else {}
 
     drift = _safe(lambda: detect_drift(long), pd.DataFrame())
+    drift_sig = _safe(lambda: drift_signal(long), pd.DataFrame())
 
     incidents = pd.DataFrame()
     if not all_alerts.empty:
@@ -363,8 +365,10 @@ def _assemble_snapshot(
         "comparison": _df_records(comparison),
         "carbon": carbon_block,
         "recommendations": _df_records(recs),
+        "green_ops": green,
         "tagging": tagging_block,
         "drift": _df_records(drift),
+        "drift_signal": _df_records(drift_sig),
         "incidents": _df_records(incidents),
         "forecast": _df_records(fcast),
         "projected_monthly": _df_records(proj),

@@ -190,6 +190,107 @@ def attribute_carbon_to_alerts(
     return pd.DataFrame(rows).sort_values("kg_co2", ascending=False).reset_index(drop=True)
 
 
+def green_impact(
+    cur_df: pd.DataFrame,
+    alerts: pd.DataFrame,
+    recommendations: pd.DataFrame,
+    *,
+    horizons: tuple[int, ...] = (7, 14, 30),
+) -> dict:
+    """GreenOps layer - two things a pure-FinOps tool misses.
+
+    A. Re-rank remediations by **kgCO2 avoided**, not dollars. A dollar saved
+       in a coal grid (ap-south-1, 0.708) is ~50x the carbon of a dollar in a
+       hydro grid (eu-north-1, 0.013), so the greenest fix is rarely the
+       biggest-dollar fix.
+    B. **Cost of inaction**: every day an anomaly leaks burns money and carbon.
+       Project the average daily anomalous excess across 7/14/30-day horizons.
+    """
+    empty = {
+        "savings": [], "savings_total_usd": 0.0, "savings_total_co2": 0.0,
+        "inaction": {"daily_usd": 0.0, "daily_co2_kg": 0.0, "horizons": [], "by_service": []},
+    }
+    if cur_df.empty:
+        return empty
+
+    # B. Cost of inaction: daily anomalous excess over each service's baseline.
+    daily = cur_df.groupby(["date", "service"], as_index=False)["cost"].sum()
+    baseline = daily.groupby("service")["cost"].median().to_dict()
+    dataset_days = max(int(pd.to_datetime(cur_df["date"]).nunique()), 1)
+
+    per_service_excess: dict[str, float] = {}
+    per_service_co2: dict[str, float] = {}
+    per_service_region: dict[str, str] = {}
+    _peak: dict[str, float] = {}
+    if alerts is not None and not alerts.empty:
+        for _, a in alerts.iterrows():
+            svc = str(a.get("service", ""))
+            excess = max(0.0, float(a.get("cost", 0.0)) - float(baseline.get(svc, 0.0)))
+            if excess <= 0:
+                continue
+            slice_ = cur_df[(pd.to_datetime(cur_df["date"]) == pd.to_datetime(a.get("date"))) & (cur_df["service"] == svc)]
+            region = str(slice_.sort_values("cost", ascending=False).iloc[0].get("region", "global")) if not slice_.empty else "global"
+            per_service_excess[svc] = per_service_excess.get(svc, 0.0) + excess
+            per_service_co2[svc] = per_service_co2.get(svc, 0.0) + carbon_for_row(svc, region, excess)
+            if excess > _peak.get(svc, 0.0):
+                _peak[svc] = excess
+                per_service_region[svc] = region
+
+    daily_usd = sum(per_service_excess.values()) / dataset_days
+    daily_co2 = sum(per_service_co2.values()) / dataset_days
+    horizon_rows = [{
+        "days": h,
+        "usd": round(daily_usd * h, 2),
+        "co2_kg": round(daily_co2 * h, 1),
+        "km_equiv": round(daily_co2 * h * KM_PER_KG_CO2, 0),
+        "tree_years": round(daily_co2 * h * TREE_YEARS_PER_KG_CO2, 1),
+    } for h in horizons]
+    by_service = sorted(
+        ({"service": svc, "daily_usd": round(exc / dataset_days, 2),
+          "co2_kg_30d": round(per_service_co2.get(svc, 0.0) / dataset_days * 30, 1)}
+         for svc, exc in per_service_excess.items()),
+        key=lambda s: -s["daily_usd"],
+    )
+
+    # A. Savings ranked by CO2 avoided = proactive recommendations + fixing the
+    # active anomaly leaks. The same dollar in a dirtier grid ranks higher.
+    savings = []
+    if recommendations is not None and not recommendations.empty:
+        for _, r in recommendations.iterrows():
+            usd = float(r.get("impact_usd_per_month", 0.0))
+            co2 = carbon_for_row(str(r.get("service", "")), str(r.get("region", "")), usd)
+            savings.append({
+                "category": r.get("category", ""), "service": r.get("service", ""),
+                "region": r.get("region", ""), "usd_per_month": round(usd, 2),
+                "co2_kg_per_month": round(co2, 1), "km_equiv": round(co2 * KM_PER_KG_CO2, 0),
+                "confidence": r.get("confidence", ""),
+            })
+    for svc, exc in per_service_excess.items():
+        usd = exc / dataset_days * 30
+        co2 = per_service_co2.get(svc, 0.0) / dataset_days * 30
+        savings.append({
+            "category": "Fix active leak", "service": svc,
+            "region": per_service_region.get(svc, "global"), "usd_per_month": round(usd, 2),
+            "co2_kg_per_month": round(co2, 1), "km_equiv": round(co2 * KM_PER_KG_CO2, 0),
+            "confidence": "from anomalies",
+        })
+    savings.sort(key=lambda s: -s["co2_kg_per_month"])
+    savings_total_usd = round(sum(s["usd_per_month"] for s in savings), 2)
+    savings_total_co2 = round(sum(s["co2_kg_per_month"] for s in savings), 1)
+
+    return {
+        "savings": savings,
+        "savings_total_usd": savings_total_usd,
+        "savings_total_co2": savings_total_co2,
+        "inaction": {
+            "daily_usd": round(daily_usd, 2),
+            "daily_co2_kg": round(daily_co2, 2),
+            "horizons": horizon_rows,
+            "by_service": by_service,
+        },
+    }
+
+
 def greener_region_recommendation(
     current_region: str,
     *,

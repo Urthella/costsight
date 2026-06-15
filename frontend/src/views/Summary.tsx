@@ -1,7 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { LayoutDashboard, Info } from "lucide-react";
 import { useSnapshot } from "../hooks/useSnapshot";
-import { Card, CardBody, SectionTitle, SeverityBadge } from "../components/ui";
+import { Card, CardBody, SectionTitle, SeverityBadge, ModeToggle } from "../components/ui";
 import { usd } from "../lib/utils";
 import type { Alert } from "../types";
 
@@ -53,6 +53,7 @@ function dedupeIncidents(alerts: Alert[]): Incident[] {
 
 export default function Summary() {
   const { data } = useSnapshot();
+  const [skyMode, setSkyMode] = useState<"3d" | "2d">("3d");
   if (!data) return null;
 
   const incidents = dedupeIncidents(data.alerts);
@@ -67,6 +68,7 @@ export default function Summary() {
   const skyline = Object.entries(totals)
     .map(([service, total]) => ({ service, total }))
     .sort((a, b) => b.total - a.total);
+  const skyMax = skyline[0]?.total ?? 0;
   const alertCount: Record<string, number> = {};
   for (const a of data.alerts) alertCount[a.service] = (alertCount[a.service] ?? 0) + 1;
   const skylineInfo = Object.fromEntries(
@@ -112,14 +114,36 @@ export default function Summary() {
 
       <Card className="mb-3" dataTour="skyline">
         <CardBody>
-          <div className="mb-1 text-sm font-medium">
-            Spend landscape - drag to orbit, hover a tower
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">
+              Spend landscape{skyMode === "3d" ? " - drag to orbit, hover a tower" : " - total spend per service"}
+            </span>
+            <ModeToggle mode={skyMode} onChange={setSkyMode} />
           </div>
-          <Suspense
-            fallback={<div className="h-[320px] animate-pulse rounded-lg bg-muted" />}
-          >
-            <SpendSkyline data={skyline} info={skylineInfo} />
-          </Suspense>
+          {skyMode === "3d" ? (
+            <Suspense
+              fallback={<div className="h-[320px] animate-pulse rounded-lg bg-muted" />}
+            >
+              <SpendSkyline data={skyline} info={skylineInfo} />
+            </Suspense>
+          ) : (
+            <div className="space-y-1.5 py-2">
+              {skyline.map((s) => {
+                const pct = skyMax ? (s.total / skyMax) * 100 : 0;
+                const alerts = alertCount[s.service] ?? 0;
+                return (
+                  <div key={s.service} className="flex items-center gap-3 text-sm">
+                    <span className="w-28 shrink-0 truncate text-muted-foreground">{s.service}</span>
+                    <div className="h-5 flex-1 rounded bg-muted">
+                      <div className="h-5 rounded bg-primary/80" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="w-24 shrink-0 text-right tabular-nums">{usd(s.total)}</span>
+                    <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">{alerts ? `${alerts} alerts` : ""}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardBody>
       </Card>
 

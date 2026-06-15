@@ -13,6 +13,7 @@ import {
   Lightbulb,
   BookOpen,
   Leaf,
+  Sprout,
   Tag,
   Bot,
   Zap,
@@ -81,6 +82,7 @@ export const NAV: NavGroup[] = [
     icon: Leaf,
     items: [
       item("carbon", "Carbon", Leaf),
+      item("greenops", "GreenOps", Sprout),
       item("tagging", "Tagging", Tag),
     ],
   },

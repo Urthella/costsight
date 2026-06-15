@@ -184,7 +184,9 @@ def test_carbon_and_recommender_and_tagging():
 
 
 def test_drift_and_explainer():
-    from cloud_anomaly.drift import detect_drift, page_hinkley, adwin_lite
+    from cloud_anomaly.drift import (
+        detect_drift, drift_signal, page_hinkley, page_hinkley_signal, adwin_lite,
+    )
     from cloud_anomaly.explainer import explain_alert, clear_cache
 
     cur, _, _ = generate(n_days=90, seed=11, scenario="drift_heavy")
@@ -197,11 +199,23 @@ def test_drift_and_explainer():
     adw_idx = adwin_lite(s3_series, min_window=7, sensitivity=0.20)
     assert (len(ph_idx) + len(adw_idx)) >= 1
 
+    # The plottable statistic mirrors page_hinkley: one value per point, and the
+    # flagged indices match the threshold the curve crosses.
+    stat, flags = page_hinkley_signal(s3_series, threshold=30)
+    assert len(stat) == len(s3_series)
+    assert flags == page_hinkley(s3_series, threshold=30)
+    assert all(stat[i] > 30 for i in flags)
+
     drift_df = detect_drift(long)
     assert {
         "service", "change_date", "direction", "magnitude_pct",
         "detector", "confidence",
     } <= set(drift_df.columns)
+
+    sig = drift_signal(long)
+    assert {"service", "date", "ph_stat", "threshold", "flag"} <= set(sig.columns)
+    assert len(sig) == len(long)              # one row per (service, date)
+    assert bool(sig["flag"].any())            # drift_heavy must fire somewhere
 
     # Explainer - force template mode (no API key) and check we get text.
     clear_cache()
@@ -409,10 +423,33 @@ def test_forecast_runs():
         assert (proj["projected_monthly"] >= 0).all()
 
 
+def test_green_impact():
+    from cloud_anomaly.carbon import green_impact
+    from cloud_anomaly.recommender import all_recommendations
+    from cloud_anomaly.detectors import DETECTORS
+
+    cur, _, _ = generate(n_days=90, seed=7, scenario="default")
+    long = aggregate_by_service(cur)
+    det = DETECTORS["stl"](long)
+    alerts = build_alerts(det, "stl", dataset_days=int(long["date"].nunique()))
+    recs = all_recommendations(cur)
+
+    g = green_impact(cur, alerts, recs)
+    assert {"savings", "inaction"} <= set(g.keys())
+    assert {"daily_usd", "daily_co2_kg", "horizons", "by_service"} <= set(g["inaction"].keys())
+    assert len(g["inaction"]["horizons"]) == 3
+    # Savings are ranked by carbon avoided, descending.
+    co2s = [s["co2_kg_per_month"] for s in g["savings"]]
+    assert co2s == sorted(co2s, reverse=True)
+    # 30-day inaction must dominate 7-day (monotonic in horizon).
+    by_days = {h["days"]: h["usd"] for h in g["inaction"]["horizons"]}
+    assert by_days[30] >= by_days[7]
+
+
 SNAPSHOT_SECTIONS = {
     "meta", "kpis", "detectors", "daily", "series", "detections", "alerts",
-    "attribution", "comparison", "carbon", "recommendations", "tagging",
-    "drift", "incidents", "forecast", "ground_truth", "playbooks",
+    "attribution", "comparison", "carbon", "recommendations", "green_ops", "tagging",
+    "drift", "drift_signal", "incidents", "forecast", "ground_truth", "playbooks",
 }
 
 

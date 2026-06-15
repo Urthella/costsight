@@ -82,6 +82,42 @@ export interface Tagging {
   policy_yaml: string;
 }
 
+export interface DriftSignalPoint {
+  service: string;
+  date: string;
+  ph_stat: number;
+  threshold: number;
+  flag: boolean;
+}
+
+export interface GreenSaving {
+  category: string;
+  service: string;
+  region: string;
+  usd_per_month: number;
+  co2_kg_per_month: number;
+  km_equiv: number;
+  confidence: string;
+}
+export interface InactionHorizon {
+  days: number;
+  usd: number;
+  co2_kg: number;
+  km_equiv: number;
+  tree_years: number;
+}
+export interface GreenOps {
+  savings: GreenSaving[];
+  savings_total_usd: number;
+  savings_total_co2: number;
+  inaction: {
+    daily_usd: number;
+    daily_co2_kg: number;
+    horizons: InactionHorizon[];
+    by_service: { service: string; daily_usd: number; co2_kg_30d: number }[];
+  };
+}
+
 export interface Snapshot {
   meta: Meta;
   kpis: Kpis;
@@ -94,8 +130,10 @@ export interface Snapshot {
   comparison: ComparisonRow[];
   carbon: Carbon;
   recommendations: Recommendation[];
+  green_ops: GreenOps;
   tagging: Tagging;
   drift: Record<string, unknown>[];
+  drift_signal: DriftSignalPoint[];
   incidents: Record<string, unknown>[];
   forecast: Record<string, unknown>[];
   projected_monthly: Record<string, unknown>[];

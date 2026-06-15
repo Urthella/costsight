@@ -27,6 +27,7 @@ const VIEWS: Record<string, ComponentType> = {
   reco: lazy(() => import("./views/Recommendations")),
   playbook: lazy(() => import("./views/Playbook")),
   carbon: lazy(() => import("./views/Carbon")),
+  greenops: lazy(() => import("./views/GreenOps")),
   tagging: lazy(() => import("./views/Tagging")),
   ai: lazy(() => import("./views/AIExplain")),
   perf: lazy(() => import("./views/Perf")),
