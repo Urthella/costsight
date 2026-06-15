@@ -29,6 +29,9 @@ CONFIGS = [
     # files (the old 4-day fixture lives in cur_loader_fixture.csv) flag nothing
     # because the detectors need ~2 weeks of history.
     ("aws_cur_sample", dict(n_days=90, seed=7, scenario="spike_storm")),
+    # The "see everything" upload: sustained level shifts (HIGH severity),
+    # spikes and drift across services so every view fills with strong signal.
+    ("cur_showcase_90d", dict(n_days=90, seed=9, scenario="showcase")),
     ("cur_default_90d", dict(n_days=90, seed=42, scenario="default")),
     ("cur_spike_storm_60d", dict(n_days=60, seed=7, scenario="spike_storm")),
     ("cur_stealth_leak_90d", dict(n_days=90, seed=3, scenario="stealth_leak")),

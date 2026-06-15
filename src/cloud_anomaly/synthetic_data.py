@@ -31,6 +31,7 @@ SCENARIOS = {
     "multi_region":      "Region outage - costs shift from one region to another.",
     "weekend_camouflage": "Spike timed on weekends to dodge weekly seasonality.",
     "calm":              "No anomalies - pure baseline (negative control).",
+    "showcase":          "Everything at once - sustained level shifts (HIGH severity), spikes and drift across services.",
 }
 
 
@@ -138,6 +139,21 @@ def _scenario_anomalies(
 
     if scenario == "calm":
         return []
+
+    if scenario == "showcase":
+        # A vivid "everything at once" demo mix: two sustained level shifts
+        # (the only thing that reaches HIGH severity), two point spikes and two
+        # drifts spread across services and regions, so every view - alerts,
+        # drift, carbon, GreenOps - fills with prominent, unmistakable signal.
+        anomalies.append(InjectedAnomaly("EC2", "level_shift", int(n_days * 0.38), min(last, int(n_days * 0.78)), 6.0))
+        anomalies.append(InjectedAnomaly("Lambda", "level_shift", int(n_days * 0.55), min(last, int(n_days * 0.88)), 4.0))
+        anomalies.append(InjectedAnomaly("S3", "gradual_drift", int(n_days * 0.15), last, 3.0))
+        anomalies.append(InjectedAnomaly("EBS", "gradual_drift", int(n_days * 0.45), last, 2.5))
+        spike_rds = min(last, int(n_days * 0.85))
+        anomalies.append(InjectedAnomaly("RDS", "point_spike", spike_rds, spike_rds, 10.0))
+        spike_ddb = min(last, max(5, int(n_days * 0.28)))
+        anomalies.append(InjectedAnomaly("DynamoDB", "point_spike", spike_ddb, spike_ddb, 6.0))
+        return anomalies
 
     # default - keep the original behavior to preserve benchmark numbers.
     spike_ec2 = max(0, last - 12)

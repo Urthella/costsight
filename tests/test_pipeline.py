@@ -446,6 +446,22 @@ def test_green_impact():
     assert by_days[30] >= by_days[7]
 
 
+def test_showcase_scenario_reaches_high():
+    """The showcase scenario must surface HIGH-severity alerts - the demo relies
+    on it, and the recalibrated severity bands make HIGH reachable at all."""
+    from cloud_anomaly.detectors import DETECTORS
+
+    cur, _, anoms = generate(n_days=90, seed=9, scenario="showcase")
+    assert len(anoms) >= 5
+    long = aggregate_by_service(cur)
+    dd = int(long["date"].nunique())
+    bands = set()
+    for name, fn in DETECTORS.items():
+        al = build_alerts(fn(long), name, dataset_days=dd)
+        bands |= set(al["severity"].tolist())
+    assert "HIGH" in bands
+
+
 SNAPSHOT_SECTIONS = {
     "meta", "kpis", "detectors", "daily", "series", "detections", "alerts",
     "attribution", "comparison", "carbon", "recommendations", "green_ops", "tagging",

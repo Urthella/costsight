@@ -38,8 +38,13 @@ DEFAULT_SEED = 42
 
 ANOMALY_TYPES = ("point_spike", "level_shift", "gradual_drift")
 
+# Calibrated to the range the severity formula actually produces. The
+# (0.4 + 0.6*x) factors plus a sustained anomaly inflating its own mean cap
+# achievable severity near ~0.5, so the old 0.66 HIGH cut-off was unreachable -
+# nothing ever scored HIGH. These cut-points put the worst anomalies in HIGH
+# while keeping HIGH selective (a few per scenario).
 SEVERITY_BANDS = {
-    "LOW":    (0.0, 0.33),
-    "MEDIUM": (0.33, 0.66),
-    "HIGH":   (0.66, 1.01),
+    "LOW":    (0.0, 0.20),
+    "MEDIUM": (0.20, 0.40),
+    "HIGH":   (0.40, 1.01),
 }

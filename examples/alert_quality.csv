@@ -1,7 +1,11 @@
 detector,severity,n_alerts,true_positive,precision
+zscore,HIGH,1,1,1.0
 zscore,MEDIUM,2,2,1.0
-zscore,LOW,1,1,1.0
-stl,MEDIUM,2,2,1.0
-stl,LOW,43,37,0.8605
-iforest,MEDIUM,2,2,1.0
-iforest,LOW,32,13,0.4062
+stl,MEDIUM,13,13,1.0
+stl,LOW,32,26,0.8125
+iforest,HIGH,1,1,1.0
+iforest,MEDIUM,10,9,0.9
+iforest,LOW,23,5,0.2174
+ensemble,HIGH,1,1,1.0
+ensemble,MEDIUM,10,9,0.9
+ensemble,LOW,5,3,0.6

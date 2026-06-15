@@ -173,15 +173,17 @@ Empirical F1 across **25 random seeds**, mean values:
 
 ## Alert Quality by Severity
 
-The severity formula `deviation × duration × $impact` is a triage filter.
+The severity formula `deviation × duration × $impact` is a triage filter,
+banded LOW / MEDIUM / HIGH. Precision (true-positive rate) by band:
 
-| Severity | STL precision | iForest precision | Z-Score precision |
-|---|---:|---:|---:|
-| MEDIUM | **1.000** | **1.000** | **1.000** |
-| LOW    |   0.860   |   0.406   |   1.000   |
+| Severity | Z-Score | STL | iForest | Ensemble |
+|---|---:|---:|---:|---:|
+| **HIGH**   | **1.00** | -        | **1.00** | **1.00** |
+| **MEDIUM** | **1.00** | **1.00** | 0.90     | 0.90     |
+| LOW        | -        | 0.81     | 0.22     | 0.60     |
 
-**MEDIUM and HIGH alerts are ~100% true positives** across detectors - a
-FinOps engineer who only triages MEDIUM+ sees almost no false alarms.
+**HIGH and MEDIUM alerts are ~90-100% true positives** - a FinOps engineer who
+triages HIGH+ sees almost no false alarms; LOW is the noisy exploratory tail.
 
 ---
 

@@ -113,7 +113,7 @@ export function startTour(): void {
         popover: {
           title: "Or try a built-in scenario",
           description:
-            "Seven synthetic mixes, each stress-testing a different pattern: <b>spike storm</b> (many sharp spikes), <b>stealth leak</b> (a slow hidden drift), <b>multi-region</b>, <b>weekend camouflage</b>, <b>calm</b> (almost nothing - tests the quiet case) and the canonical <b>default</b>. Switching the scenario instantly recomputes every view.",
+            "Eight synthetic mixes, each stress-testing a different pattern: <b>showcase</b> (everything at once - the vivid demo, with HIGH-severity alerts), <b>spike storm</b> (many sharp spikes), <b>stealth leak</b> (a slow hidden drift), <b>multi-region</b>, <b>weekend camouflage</b>, <b>calm</b> (almost nothing - tests the quiet case) and the canonical <b>default</b>. Switching the scenario instantly recomputes every view.",
           side: "right",
           align: "start",
         },

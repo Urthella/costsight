@@ -11,3 +11,7 @@ iforest,gradual_drift,0.24,0.1935,0.2143,6,19,25
 iforest,level_shift,0.24,0.3158,0.2727,6,19,13
 iforest,point_spike,0.1364,1.0,0.24,3,19,0
 iforest,OVERALL,0.4412,0.283,0.3448,15,19,38
+ensemble,gradual_drift,0.625,0.1613,0.2564,5,3,26
+ensemble,level_shift,0.625,0.2632,0.3704,5,3,14
+ensemble,point_spike,0.5,1.0,0.6667,3,3,0
+ensemble,OVERALL,0.8125,0.2453,0.3768,13,3,40

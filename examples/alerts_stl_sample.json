@@ -23,7 +23,7 @@
     "cost": 957.04,
     "score": 8.88213690891274,
     "severity_score": 0.31716328543588945,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -32,7 +32,7 @@
     "cost": 164.75,
     "score": 9.715212116443093,
     "severity_score": 0.31429004443062336,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -41,7 +41,7 @@
     "cost": 120.66,
     "score": 10.565430134334717,
     "severity_score": 0.30727255185026336,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -50,7 +50,7 @@
     "cost": 121.92,
     "score": 10.140447599656426,
     "severity_score": 0.2958576229197811,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -59,7 +59,7 @@
     "cost": 142.16,
     "score": 9.290023825608317,
     "severity_score": 0.28497755180449585,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -68,7 +68,7 @@
     "cost": 119.67,
     "score": 8.866706731371753,
     "severity_score": 0.2572091839996509,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -77,7 +77,7 @@
     "cost": 118.16,
     "score": 8.448551083162107,
     "severity_score": 0.24413094980051064,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -86,7 +86,7 @@
     "cost": 126.12,
     "score": 8.03743929834065,
     "severity_score": 0.23699049910700043,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -95,7 +95,7 @@
     "cost": 112.17,
     "score": 7.623880631560884,
     "severity_score": 0.21691098845532364,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -104,7 +104,7 @@
     "cost": 100.28,
     "score": 7.649036791533475,
     "severity_score": 0.2153950029269122,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {
@@ -113,7 +113,7 @@
     "cost": 124.02,
     "score": 6.853802032251288,
     "severity_score": 0.201014834216682,
-    "severity": "LOW",
+    "severity": "MEDIUM",
     "detector": "stl"
   },
   {

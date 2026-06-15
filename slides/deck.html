@@ -1087,33 +1087,44 @@ section.bigstat .stat {
 }
 ;background-color:#fafafa;background-image:none;" data-marpit-pagination-total="17" data-size="16:9">
 <h2 id="alert-quality-by-severity">Alert Quality by Severity</h2>
-<p>The severity formula <code>deviation × duration × $impact</code> is a triage filter.</p>
+<p>The severity formula <code>deviation × duration × $impact</code> is a triage filter,<br />
+banded LOW / MEDIUM / HIGH. Precision (true-positive rate) by band:</p>
 <table>
 <thead>
 <tr>
 <th>Severity</th>
-<th style="text-align:right">STL precision</th>
-<th style="text-align:right">iForest precision</th>
-<th style="text-align:right">Z-Score precision</th>
+<th style="text-align:right">Z-Score</th>
+<th style="text-align:right">STL</th>
+<th style="text-align:right">iForest</th>
+<th style="text-align:right">Ensemble</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>MEDIUM</td>
-<td style="text-align:right"><strong>1.000</strong></td>
-<td style="text-align:right"><strong>1.000</strong></td>
-<td style="text-align:right"><strong>1.000</strong></td>
+<td><strong>HIGH</strong></td>
+<td style="text-align:right"><strong>1.00</strong></td>
+<td style="text-align:right">-</td>
+<td style="text-align:right"><strong>1.00</strong></td>
+<td style="text-align:right"><strong>1.00</strong></td>
+</tr>
+<tr>
+<td><strong>MEDIUM</strong></td>
+<td style="text-align:right"><strong>1.00</strong></td>
+<td style="text-align:right"><strong>1.00</strong></td>
+<td style="text-align:right">0.90</td>
+<td style="text-align:right">0.90</td>
 </tr>
 <tr>
 <td>LOW</td>
-<td style="text-align:right">0.860</td>
-<td style="text-align:right">0.406</td>
-<td style="text-align:right">1.000</td>
+<td style="text-align:right">-</td>
+<td style="text-align:right">0.81</td>
+<td style="text-align:right">0.22</td>
+<td style="text-align:right">0.60</td>
 </tr>
 </tbody>
 </table>
-<p><strong>MEDIUM and HIGH alerts are ~100% true positives</strong> across detectors - a<br />
-FinOps engineer who only triages MEDIUM+ sees almost no false alarms.</p>
+<p><strong>HIGH and MEDIUM alerts are ~90-100% true positives</strong> - a FinOps engineer who<br />
+triages HIGH+ sees almost no false alarms; LOW is the noisy exploratory tail.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-background-color="#fafafa" data-theme="default" data-style="section {
   font-family: 'Inter', 'Segoe UI', sans-serif;
