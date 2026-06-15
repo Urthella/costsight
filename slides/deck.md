@@ -15,12 +15,14 @@ style: |
   th { background: #2A9D8F; color: white; }
   blockquote { border-left: 4px solid #E9A23B; color: #555; }
   section.title {
-    background: linear-gradient(135deg, #2A9D8F 0%, #264653 100%);
+    background: linear-gradient(135deg, #2A9D8F 0%, #264653 100%) !important;
     color: white;
   }
-  section.title h1, section.title h2, section.title strong {
+  section.title h1, section.title h2, section.title h3,
+  section.title strong, section.title a {
     color: white;
   }
+  section.title a { text-decoration: underline; }
   section.bigstat {
     text-align: center;
   }
