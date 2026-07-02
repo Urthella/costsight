@@ -133,22 +133,29 @@ detector-agnostic.
 Mean ± std across **25 random seeds** (`python scripts/run_benchmark.py
 --seeds 25`). Full table in [`examples/benchmark_summary.csv`](examples/benchmark_summary.csv).
 
-### F1 by anomaly type
+### Recall by anomaly type (F1 overall)
 
-| Detector | Point spike | Level shift | Gradual drift | Overall |
+Recall is the per-type metric; precision/F1 are class-agnostic and reported
+on the Overall column. Mean ± std across 25 seeds.
+
+| Detector | Point spike | Level shift | Gradual drift | Overall F1 |
 |---|---:|---:|---:|---:|
-| **Z-Score**         | **0.962 ± 0.078** | 0.012 ± 0.033 | 0.000 ± 0.000 | 0.105 ± 0.018 |
-| **STL**             | 0.522 ± 0.082 | **0.616 ± 0.204** | **0.734 ± 0.052** | **0.757 ± 0.064** |
-| **Isolation Forest**| 0.247 ± 0.035 | 0.216 ± 0.060 | 0.217 ± 0.034 | 0.319 ± 0.036 |
+| **Z-Score**         | 0.987 ± 0.067 | **0.800 ± 0.277** | 0.424 ± 0.251 | 0.507 ± 0.174 |
+| **STL**             | 1.000 ± 0.000 | 0.611 ± 0.236 | **0.689 ± 0.065** | **0.757 ± 0.064** |
+| **Isolation Forest**| 1.000 ± 0.000 | 0.240 ± 0.070 | 0.196 ± 0.035 | 0.319 ± 0.036 |
+
+The consensus **Ensemble** scores 0.858 P / 0.543 R / **0.655 F1** overall.
 
 ### Headline takeaways
 
 - **No single method wins all anomaly types** - the central thesis of the
   project is empirically supported.
-- **STL** is the strongest overall detector and handles trend-based
-  anomalies (drift, level shift) cleanly.
-- **Z-Score** is a perfect point-spike detector but completely blind to
-  drift and level shifts, exactly as expected from a stationary baseline.
+- **STL** leads on F1 (0.757) with the highest precision, and handles
+  trend-based anomalies (drift, level shift) cleanly.
+- **Z-Score**, after its redesign (trailing robust MAD baseline + one-sided
+  CUSUM change-point), is no longer blind to sustained change: level-shift
+  recall 0.006 → 0.800 and drift recall 0.000 → 0.424 lift its overall F1
+  from 0.105 to 0.507 - now significantly ahead of Isolation Forest.
 - **Isolation Forest** catches every point spike (recall = 1.0 there) but
   struggles to flag persistent shifts because they look "in distribution"
   once they stabilise - a known limitation of unsupervised tree models on

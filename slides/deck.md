@@ -118,18 +118,19 @@ exposes the same `detect(df)` interface - alerts and evaluation are
 
 ---
 
-## Empirical F1 by Anomaly Type
+## Empirical Recall by Anomaly Type
 
 ![bg right:55% w:100%](figures/fig02_f1_by_type.png)
 
 **Three observations:**
 
-- Z-Score is **perfect** on point spikes
-- Z-Score is **blind** to drift / level shift
-- STL is **strongest overall**
-- Isolation Forest is **mid-pack** but consistent across types
+- All three are **perfect** on point spikes
+- Redesigned Z-Score (robust MAD + CUSUM) now **catches level shift & drift**
+- STL is **strongest overall** on F1 (highest precision)
+- Isolation Forest is **last** on sustained change
 
 > Same data, three lenses - measured, not estimated.
+> Precision/F1 are class-agnostic → reported on OVERALL.
 
 ---
 
@@ -137,11 +138,13 @@ exposes the same `detect(df)` interface - alerts and evaluation are
 
 ![bg right:55% w:100%](figures/fig03_performance_matrix.png)
 
-Empirical F1 across **25 random seeds**, mean values:
+Recall (detection rate) across **25 random seeds**, mean - point / level / drift:
 
-- Z-Score → 0.96 / 0.01 / 0.00
-- STL     → 0.52 / 0.62 / **0.73**
-- iForest → 0.25 / 0.22 / 0.22
+- Z-Score → 0.99 / 0.80 / 0.42
+- STL     → 1.00 / 0.61 / **0.69**
+- iForest → 1.00 / 0.24 / 0.20
+
+> OVERALL F1: STL 0.76 · Ensemble 0.66 · Z-Score 0.51 · iForest 0.32
 
 **Takeaway:** no single method wins all types - that's why we run all three.
 
@@ -159,15 +162,16 @@ Empirical F1 across **25 random seeds**, mean values:
 
 ## Multi-Seed Robustness
 
-25 independent random seeds, mean ± std F1:
+25 independent random seeds, mean ± std - **recall** per type, **F1** overall:
 
-| Detector | Point Spike | Level Shift | Gradual Drift | **Overall** |
+| Detector | Point Spike | Level Shift | Gradual Drift | **Overall F1** |
 |---|---:|---:|---:|---:|
-| Z-Score          | 0.962 ± 0.078 | 0.012 ± 0.033 | 0.000 ± 0.000 | **0.105 ± 0.018** |
-| **STL**          | 0.522 ± 0.082 | 0.616 ± 0.204 | 0.734 ± 0.052 | **0.757 ± 0.064** |
-| Isolation Forest | 0.247 ± 0.035 | 0.216 ± 0.060 | 0.217 ± 0.034 | **0.319 ± 0.036** |
+| Z-Score          | 0.987 ± 0.067 | 0.800 ± 0.277 | 0.424 ± 0.251 | **0.507 ± 0.174** |
+| **STL**          | 1.000 ± 0.000 | 0.611 ± 0.236 | 0.689 ± 0.065 | **0.757 ± 0.064** |
+| Isolation Forest | 1.000 ± 0.000 | 0.240 ± 0.070 | 0.196 ± 0.035 | **0.319 ± 0.036** |
 
-> Std is tight: STL's lead is **statistically robust**, not a single-seed fluke.
+> Non-overlapping bootstrap F1 CIs (iForest < Z-Score < Ensemble < STL):
+> the ranking is **statistically robust**, not a single-seed fluke.
 
 ---
 

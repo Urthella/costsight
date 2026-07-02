@@ -73,8 +73,15 @@ def write(result: BenchmarkResult, out_dir: Path | None = None) -> dict[str, Pat
 
 
 def render_table(summary: pd.DataFrame) -> str:
-    """Pretty Markdown table: detector + anomaly_type + 'mean ± std' per metric."""
-    fmt = lambda m, s: f"{m:.3f} ± {s:.3f}"
+    """Pretty Markdown table: detector + anomaly_type + 'mean ± std' per metric.
+
+    Precision/F1 are undefined per anomaly type (a false positive has no class),
+    so those cells read '-' on per-type rows and only the OVERALL row carries
+    them; recall is the per-type metric.
+    """
+    def cell(m: float, s: float) -> str:
+        return "-" if pd.isna(m) else f"{m:.3f} ± {s:.3f}"
+
     rows = ["| Detector | Anomaly type | Precision | Recall | F1 |",
             "|---|---|---:|---:|---:|"]
     detector_label = {"zscore": "Z-Score", "stl": "STL", "iforest": "Isolation Forest"}
@@ -85,11 +92,14 @@ def render_table(summary: pd.DataFrame) -> str:
             if row.empty:
                 continue
             r = row.iloc[0]
+            f1_cell = cell(r["f1_mean"], r["f1_std"])
+            if not pd.isna(r["f1_mean"]):
+                f1_cell = f"**{f1_cell}**"
             rows.append(
                 f"| {detector_label[det]} | {atype.replace('_', ' ').title()} "
-                f"| {fmt(r['precision_mean'], r['precision_std'])} "
-                f"| {fmt(r['recall_mean'], r['recall_std'])} "
-                f"| **{fmt(r['f1_mean'], r['f1_std'])}** |"
+                f"| {cell(r['precision_mean'], r['precision_std'])} "
+                f"| {cell(r['recall_mean'], r['recall_std'])} "
+                f"| {f1_cell} |"
             )
     return "\n".join(rows)
 
