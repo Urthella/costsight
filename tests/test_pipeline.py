@@ -19,6 +19,7 @@ from cloud_anomaly.evaluation import (
     cost_saved_estimate,
     evaluate,
     evaluate_alerts,
+    evaluate_by_type,
     paired_significance,
     time_to_detect,
 )
@@ -271,6 +272,39 @@ def test_each_detector_runs():
         det = fn(long)
         assert {"date", "service", "cost", "score", "is_anomaly"} <= set(det.columns)
         assert len(det) == len(long)
+
+
+def test_zscore_detects_sustained_change():
+    """Regression guard for the robust+CUSUM zscore fix.
+
+    The old in-window rolling baseline self-masked every anomaly (overall recall
+    ~5%, level_shift and gradual_drift recall exactly 0). This pins the detector
+    to actually catch sustained change so a regression can't silently return.
+    """
+    drift_r = level_r = spike_r = overall_r = 0.0
+    seeds = (7, 11)
+    for seed in seeds:
+        cur, labels, _ = generate(n_days=90, seed=seed)
+        long = aggregate_by_service(cur)
+        det = DETECTORS["zscore"](long)
+        by_type = evaluate_by_type(det, labels).set_index("anomaly_type")["recall"]
+        drift_r += by_type.get("gradual_drift", 0.0)
+        level_r += by_type.get("level_shift", 0.0)
+        spike_r += by_type.get("point_spike", 0.0)
+        overall_r += evaluate(det, labels).recall
+    n = len(seeds)
+    assert drift_r / n >= 0.25, "gradual_drift recall regressed (was structurally 0)"
+    assert level_r / n >= 0.6, "level_shift recall regressed (was structurally 0)"
+    assert spike_r / n >= 0.9, "point_spike recall regressed"
+    assert overall_r / n >= 0.45, "overall recall regressed toward the broken baseline"
+
+
+def test_zscore_handles_empty_input():
+    empty = pd.DataFrame(columns=["date", "service", "cost"])
+    out = DETECTORS["zscore"](empty)
+    assert out.empty
+    assert {"date", "service", "cost", "score", "is_anomaly"} <= set(out.columns)
+    assert out["is_anomaly"].dtype == bool
 
 
 def test_alerts_and_eval():
