@@ -58,7 +58,16 @@ def evaluate(detections: pd.DataFrame, labels: pd.DataFrame) -> Metrics:
 
 
 def evaluate_by_type(detections: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
-    """Per-anomaly-type Precision/Recall - the headline result table."""
+    """Per-anomaly-type detection rate (recall), with precision/F1 on OVERALL.
+
+    The detectors emit a single, class-agnostic ``is_anomaly`` flag, so a false
+    positive belongs to no anomaly type. Attributing the *global* FP pool to
+    every type (as this function used to) triple-counts the same false alarms
+    and makes per-type precision/F1 meaningless. Recall, on the other hand, is
+    well defined per type - of the true type-T days, how many did we flag - so
+    that is the per-type metric. Precision and F1 are reported once, on the
+    OVERALL row, where FP is defined. Per-type precision/F1/FP are left as NaN.
+    """
     pred_df = detections[["date", "service", "is_anomaly"]].rename(
         columns={"is_anomaly": "_pred"}
     )
@@ -70,15 +79,22 @@ def evaluate_by_type(detections: pd.DataFrame, labels: pd.DataFrame) -> pd.DataF
     merged["_truth"] = merged["_truth"].fillna(False).astype(bool)
     merged["anomaly_type"] = merged["anomaly_type"].fillna("")
 
+    nan = float("nan")
     rows = []
     for anomaly_type in sorted(t for t in merged["anomaly_type"].unique() if t):
         type_truth = (merged["anomaly_type"] == anomaly_type) & merged["_truth"]
         tp = int((merged["_pred"] & type_truth).sum())
         fn = int((~merged["_pred"] & type_truth).sum())
-        # FP = predicted anomalies where the row is not anomalous (any type).
-        fp = int((merged["_pred"] & ~merged["_truth"]).sum())
-        m = _metrics(tp, fp, fn)
-        rows.append({"anomaly_type": anomaly_type, **m.as_dict()})
+        recall = tp / (tp + fn) if (tp + fn) else 0.0
+        rows.append({
+            "anomaly_type": anomaly_type,
+            "precision": nan,  # undefined per type: a false positive has no class
+            "recall": round(recall, 4),
+            "f1": nan,
+            "tp": tp,
+            "fp": nan,
+            "fn": fn,
+        })
 
     overall = evaluate(detections, labels)
     rows.append({"anomaly_type": "OVERALL", **overall.as_dict()})

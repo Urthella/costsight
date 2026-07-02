@@ -332,6 +332,43 @@ def test_alerts_and_eval():
         assert quality["precision"].between(0.0, 1.0).all()
 
 
+def test_evaluate_by_type_fp_not_triple_counted():
+    """A class-agnostic false positive must not be charged to every type.
+
+    Hand-built case: one TP (point_spike), one FN (level_shift), one FP on a
+    non-anomalous day. The old code assigned the global FP (=1) to every
+    per-type row, so per-type precision was misleading. Now per-type reports
+    recall only; precision/F1/FP are NaN per type and defined on OVERALL.
+    """
+    import numpy as np
+
+    dates = pd.to_datetime(["2025-01-01", "2025-01-02", "2025-01-03"])
+    detections = pd.DataFrame({
+        "date": dates, "service": ["EC2"] * 3,
+        "is_anomaly": [True, False, True],  # TP, missed, FP
+    })
+    labels = pd.DataFrame({
+        "date": dates, "service": ["EC2"] * 3,
+        "is_anomaly": [True, True, False],
+        "anomaly_type": ["point_spike", "level_shift", ""],
+    })
+
+    by_type = evaluate_by_type(detections, labels).set_index("anomaly_type")
+
+    # Per-type recall is well defined; precision/F1/FP are NaN (not the global FP).
+    assert by_type.loc["point_spike", "recall"] == 1.0
+    assert by_type.loc["level_shift", "recall"] == 0.0
+    for t in ("point_spike", "level_shift"):
+        assert np.isnan(by_type.loc[t, "precision"])
+        assert np.isnan(by_type.loc[t, "f1"])
+        assert np.isnan(by_type.loc[t, "fp"])
+
+    # OVERALL carries the real precision/recall/F1 (1 TP, 1 FP, 1 FN).
+    overall = by_type.loc["OVERALL"]
+    assert overall["tp"] == 1 and overall["fp"] == 1 and overall["fn"] == 1
+    assert overall["precision"] == 0.5 and overall["recall"] == 0.5
+
+
 def test_benchmark_runs():
     result = run_benchmark(n_seeds=3, n_days=60, base_seed=2000)
     assert {"detector", "anomaly_type", "f1_mean", "f1_std", "n_runs"} <= set(result.summary.columns)

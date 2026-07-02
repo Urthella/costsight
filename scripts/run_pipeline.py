@@ -11,7 +11,7 @@ from cloud_anomaly.pipeline import run  # noqa: E402
 
 if __name__ == "__main__":
     artifacts = run()
-    print("\n=== Detector comparison (P/R by anomaly type) ===")
+    print("\n=== Detector comparison (recall by type; precision/F1 on OVERALL) ===")
     print(artifacts["comparison"].to_string(index=False))
     if not artifacts["alert_quality"].empty:
         print("\n=== Alert quality by severity band ===")
