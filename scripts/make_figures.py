@@ -4,9 +4,14 @@ Outputs land in ``slides/figures/`` as 1600x900 PNGs that can be dropped
 straight into the existing slide deck:
 
     fig01_dataset_overview.png   - slide 6 replacement (synthetic data peek)
-    fig02_f1_by_type.png         - slide 9 replacement (empirical bar chart)
-    fig03_performance_matrix.png - slide 10 replacement (empirical heatmap)
+    fig02_f1_by_type.png         - slide 9 replacement (per-type recall bars)
+    fig03_performance_matrix.png - slide 10 replacement (per-type recall heatmap)
     fig04_detector_overlay.png   - bonus: same trend, three detectors
+
+Per-type precision/F1 are undefined for a class-agnostic detector (a false
+positive has no anomaly type), so the per-type figures plot recall - the
+detection rate for each anomaly pattern. The filenames are kept so the existing
+slide deck keeps resolving them.
 """
 from __future__ import annotations
 
@@ -80,8 +85,12 @@ def fig_dataset_overview(cur, labels):
     return out
 
 
-def fig_f1_by_type(comparison):
-    """Grouped bar chart: detectors × anomaly type, height = F1."""
+def fig_recall_by_type(comparison):
+    """Grouped bar chart: detectors × anomaly type, height = recall.
+
+    Recall is the per-type metric (precision/F1 are class-agnostic and live on
+    the OVERALL row), so this shows the detection rate for each anomaly pattern.
+    """
     df = comparison[comparison["anomaly_type"] != "OVERALL"].copy()
     types = ["point_spike", "level_shift", "gradual_drift"]
     detectors = ["zscore", "stl", "iforest"]
@@ -93,7 +102,7 @@ def fig_f1_by_type(comparison):
     x = np.arange(len(types))
     for i, det in enumerate(detectors):
         vals = [
-            df[(df["detector"] == det) & (df["anomaly_type"] == t)]["f1"].iloc[0]
+            df[(df["detector"] == det) & (df["anomaly_type"] == t)]["recall"].iloc[0]
             for t in types
         ]
         bars = ax.bar(x + (i - 1) * width, vals, width=width,
@@ -106,22 +115,22 @@ def fig_f1_by_type(comparison):
     ax.set_xticks(x)
     ax.set_xticklabels([t.replace("_", " ").title() for t in types], fontsize=14)
     ax.set_ylim(0, 1.1)
-    ax.set_ylabel("F1 score", fontsize=14, color=SLATE)
-    ax.set_title("Empirical F1 by anomaly type - same dataset, three detectors",
+    ax.set_ylabel("Recall (detection rate)", fontsize=14, color=SLATE)
+    ax.set_title("Empirical recall by anomaly type - same dataset, three detectors",
                  fontsize=20, fontweight="bold", color=SLATE, pad=14)
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=12)
     ax.legend(loc="upper right", fontsize=12, frameon=False)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
-    out = OUT / "fig02_f1_by_type.png"
+    out = OUT / "fig02_f1_by_type.png"  # filename kept for slide-deck compatibility
     fig.savefig(out, dpi=120)
     plt.close(fig)
     return out
 
 
 def fig_performance_matrix(comparison):
-    """Heatmap-style matrix: rows = anomaly types, cols = detectors, cell = F1."""
+    """Heatmap-style matrix: rows = anomaly types, cols = detectors, cell = recall."""
     types = ["point_spike", "level_shift", "gradual_drift"]
     detectors = ["zscore", "stl", "iforest"]
     label_d = {"zscore": "Z-Score", "stl": "STL", "iforest": "Isolation Forest"}
@@ -132,7 +141,7 @@ def fig_performance_matrix(comparison):
     for i, t in enumerate(types):
         for j, d in enumerate(detectors):
             row = comparison[(comparison["anomaly_type"] == t) & (comparison["detector"] == d)]
-            grid[i, j] = row["f1"].iloc[0]
+            grid[i, j] = row["recall"].iloc[0]
 
     fig, ax = plt.subplots(figsize=_figsize(14, 8), dpi=110)
     im = ax.imshow(grid, cmap="RdYlGn", vmin=0.0, vmax=1.0, aspect="auto")
@@ -145,10 +154,10 @@ def fig_performance_matrix(comparison):
     ax.set_xticklabels([label_d[d] for d in detectors], fontsize=14)
     ax.set_yticks(range(len(types)))
     ax.set_yticklabels([label_t[t] for t in types], fontsize=14)
-    ax.set_title("Anomaly type × Method - empirical F1 score",
+    ax.set_title("Anomaly type × Method - empirical recall (detection rate)",
                  fontsize=20, fontweight="bold", color=SLATE, pad=14)
     cbar = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.02)
-    cbar.set_label("F1 score", fontsize=12, color=SLATE)
+    cbar.set_label("Recall", fontsize=12, color=SLATE)
     fig.tight_layout()
     out = OUT / "fig03_performance_matrix.png"
     fig.savefig(out, dpi=120)
@@ -206,7 +215,7 @@ def main() -> None:
 
     paths = [
         fig_dataset_overview(cur, labels),
-        fig_f1_by_type(comparison),
+        fig_recall_by_type(comparison),
         fig_performance_matrix(comparison),
         fig_detector_overlay(cur),
     ]

@@ -63,11 +63,18 @@ ground-truth label table so detectors can be evaluated rigorously:
 All three return the same schema (`date, service, cost, score, is_anomaly`)
 so the rest of the pipeline is detector-agnostic.
 
-**Z-Score.** Rolling 14-day mean and standard deviation per service;
-flag points where `|z| ≥ 3`. Fast and interpretable; the textbook
-limitation is that the rolling mean drifts *with* persistent shifts, so
-level-shift and gradual-drift signals quickly disappear into the
-baseline.
+**Z-Score.** A robust point test plus a change-point term, run per
+service. The point test standardizes each day against a *trailing*
+14-day median/MAD baseline (the window excludes the current day, so an
+anomaly can no longer inflate the baseline it is measured against) and
+flags `z ≥ 3.5`; a relative scale floor stops a near-flat window from
+turning jitter into a false spike. A one-sided CUSUM on the same
+standardized residuals accumulates small persistent deviations and fires
+at `h = 5`, catching the sustained level shifts and slow drift a point
+test is structurally blind to. Both signals are upward-only, since cost
+anomalies are overspends. (The earlier version used an in-window rolling
+mean/σ and scored `|z| ≥ 3`; it self-masked every anomaly and missed
+level shifts and drift almost entirely - see §3.3.)
 
 **STL Decomposition.** `statsmodels`' robust STL fits each per-service
 series with a weekly period. We score with the maximum of:
@@ -130,7 +137,7 @@ Plotly + React Three Fiber) backed by a **FastAPI** service
 Sustainability, Lab & Data): an executive summary with a 3D spend
 skyline; cost trend, calendar and a dedicated 3D explorer; alert log;
 **root-cause attribution** with one-line hints; detector comparison
-(3D F1 bars); forecast, budget, recommendations, carbon, tagging,
+(3D per-type recall bars); forecast, budget, recommendations, carbon, tagging,
 incidents, drift, an LLM explainer and a threshold lab. Most charts
 render in 3D by default with a 3D｜2D toggle; the sidebar accepts a
 drag-and-drop **AWS CUR upload** so the whole app runs on real data.
@@ -146,24 +153,34 @@ Streamlit dashboard is archived under `legacy/`.)
 - 25 independent random seeds (1000-1024).
 - 90-day synthetic dataset per seed.
 - Default detector hyperparameters.
-- Metrics: per-anomaly-type Precision, Recall, F1 + an OVERALL row.
+- Metrics: per-anomaly-type **recall** (detection rate), plus Precision,
+  Recall and F1 on an **OVERALL** row. Precision and F1 are undefined per
+  anomaly type - the detectors emit one class-agnostic `is_anomaly` flag,
+  so a false positive belongs to no type; charging the global FP pool to
+  every type would triple-count it. Recall *is* well defined per type, so
+  that is the per-type metric; precision/F1 are reported once, on OVERALL.
 
 ### 3.2 Headline results (mean ± std across 25 seeds)
 
+Per-type cells show recall; precision/F1 (`-` per type) live on OVERALL.
+
 | Detector | Anomaly type | Precision | Recall | F1 |
 |---|---|---:|---:|---:|
-| Z-Score | Point Spike | 0.990 ± 0.050 | 0.947 ± 0.125 | **0.962 ± 0.078** |
-| Z-Score | Level Shift | 0.120 ± 0.332 | 0.006 ± 0.017 | **0.012 ± 0.033** |
-| Z-Score | Gradual Drift | 0.000 ± 0.000 | 0.000 ± 0.000 | **0.000 ± 0.000** |
-| Z-Score | OVERALL | 0.990 ± 0.050 | 0.056 ± 0.010 | **0.105 ± 0.018** |
-| STL | Point Spike | 0.357 ± 0.078 | 1.000 ± 0.000 | **0.522 ± 0.082** |
-| STL | Level Shift | 0.640 ± 0.179 | 0.611 ± 0.236 | **0.616 ± 0.204** |
-| STL | Gradual Drift | 0.789 ± 0.057 | 0.689 ± 0.065 | **0.734 ± 0.052** |
+| Z-Score | Point Spike | - | 0.987 ± 0.067 | - |
+| Z-Score | Level Shift | - | 0.800 ± 0.277 | - |
+| Z-Score | Gradual Drift | - | 0.424 ± 0.251 | - |
+| Z-Score | OVERALL | 0.452 ± 0.157 | 0.591 ± 0.212 | **0.507 ± 0.174** |
+| STL | Point Spike | - | 1.000 ± 0.000 | - |
+| STL | Level Shift | - | 0.611 ± 0.236 | - |
+| STL | Gradual Drift | - | 0.689 ± 0.065 | - |
 | STL | OVERALL | 0.862 ± 0.043 | 0.678 ± 0.085 | **0.757 ± 0.064** |
-| Isolation Forest | Point Spike | 0.141 ± 0.023 | 1.000 ± 0.000 | **0.247 ± 0.035** |
-| Isolation Forest | Level Shift | 0.198 ± 0.056 | 0.240 ± 0.070 | **0.216 ± 0.060** |
-| Isolation Forest | Gradual Drift | 0.246 ± 0.037 | 0.196 ± 0.035 | **0.217 ± 0.034** |
+| Isolation Forest | Point Spike | - | 1.000 ± 0.000 | - |
+| Isolation Forest | Level Shift | - | 0.240 ± 0.070 | - |
+| Isolation Forest | Gradual Drift | - | 0.196 ± 0.035 | - |
 | Isolation Forest | OVERALL | 0.424 ± 0.048 | 0.257 ± 0.034 | **0.319 ± 0.036** |
+
+The consensus **Ensemble** (majority vote of the three) scores
+OVERALL **0.858 P / 0.543 R / 0.655 F1** - see §3.5.
 
 Reproduce with `python scripts/run_benchmark.py --seeds 25`.
 
@@ -173,19 +190,29 @@ Reproduce with `python scripts/run_benchmark.py --seeds 25`.
 project is empirically supported. The takeaways:
 
 - **STL leads overall** at F1 = 0.757 ± 0.064. Decomposing trend +
-  seasonality + residual gives it eyes on every anomaly type. Drift
-  performance (F1 = 0.734) is the strongest of the three detectors.
-- **Z-Score is the sharpest point-spike detector** (F1 = 0.962, near
-  perfect at α = 3σ), but a stationary baseline simply cannot detect
-  level shifts or drift (F1 ≈ 0). This is exactly what a stats text
-  predicts and validates that the proposal's qualitative ratings
-  matched reality.
-- **Isolation Forest is mid-pack** (F1 = 0.319). It catches every point
-  spike (recall = 1.0 there) and partially recovers level-shift /
-  drift signal once we engineer lag, slope, and seasonal-residual
-  features, but still cannot match STL's structural decomposition on
-  univariate cost. Its strength would shine on multi-cloud, multi-tag,
-  multi-feature workloads - out of scope here, listed as future work.
+  seasonality + residual gives it eyes on every anomaly type and the
+  highest precision (0.862), so it tops the F1 ranking.
+- **The redesigned Z-Score is the biggest mover.** The original
+  in-window rolling baseline self-masked every anomaly - overall F1 was
+  0.105, and level-shift / gradual-drift recall were ≈ 0. Swapping to a
+  trailing robust MAD baseline plus a one-sided CUSUM change-point term
+  lifts overall F1 to **0.507** and makes it a genuine detector of
+  sustained change: level-shift recall 0.006 → **0.800** and drift recall
+  0.000 → **0.424** across seeds (on the default seed it actually leads
+  recall on both). The trade is precision (0.45): it flags aggressively,
+  which is why STL still wins on F1. Critically, Z-Score now
+  significantly *outperforms* Isolation Forest overall (0.507 vs 0.319,
+  p ≈ 3e-5) - a reversal of the previous benchmark.
+- **The consensus Ensemble is the best precision/recall balance**
+  (OVERALL 0.858 P / 0.543 R / **0.655 F1**), second only to STL. Because
+  it takes a majority vote, the improved Z-Score lifts its recall while
+  STL/iForest hold its precision near 0.86 - it inherits the strengths
+  without the aggressive Z-Score false-alarm rate.
+- **Isolation Forest is now last** (F1 = 0.319). It catches every point
+  spike (recall = 1.0 there) but only partially recovers level-shift /
+  drift signal on univariate cost. Its strength would shine on
+  multi-cloud, multi-tag, multi-feature workloads - out of scope here,
+  listed as future work.
 
 ### 3.4 Alert quality by severity band
 
@@ -194,19 +221,26 @@ On one representative seed (seed = 42) the breakdown is:
 
 | Detector | Severity | Alerts | True positive | Precision |
 |---|---|---:|---:|---:|
-| STL    | MEDIUM |  2 |  2 | 1.000 |
-| STL    | LOW    | 43 | 37 | 0.860 |
-| iForest | MEDIUM |  2 |  2 | 1.000 |
-| iForest | LOW    | 32 | 13 | 0.406 |
-| Z-Score | MEDIUM |  2 |  2 | 1.000 |
-| Z-Score | LOW    |  1 |  1 | 1.000 |
+| STL    | MEDIUM | 13 | 13 | 1.000 |
+| STL    | LOW    | 32 | 26 | 0.812 |
+| iForest | HIGH   |  1 |  1 | 1.000 |
+| iForest | MEDIUM | 10 |  9 | 0.900 |
+| iForest | LOW    | 23 |  5 | 0.217 |
+| Z-Score | HIGH   |  1 |  1 | 1.000 |
+| Z-Score | MEDIUM |  1 |  1 | 1.000 |
+| Z-Score | LOW    | 106 | 45 | 0.424 |
+| Ensemble | HIGH   |  1 |  1 | 1.000 |
+| Ensemble | MEDIUM | 20 | 19 | 0.950 |
+| Ensemble | LOW    | 23 | 21 | 0.913 |
 
-MEDIUM- and HIGH-severity alerts are perfect for STL and Z-Score across
-seeds and acceptably high for iForest - meaning a FinOps engineer who
-only triages MEDIUM and above will see almost no false alarms. LOW
-alerts contain the noisier detections, which matches the proposal's
-intent of using severity as a triage filter rather than a hard
-classifier.
+HIGH- and MEDIUM-severity alerts are near-perfect for STL, Z-Score and
+Ensemble and strong for iForest (0.90 at MEDIUM) - a FinOps engineer who
+only triages MEDIUM and above sees almost no false alarms. The redesigned
+Z-Score's extra recall lands almost entirely in the LOW band (106 alerts,
+0.424 precision), exactly where severity triage is meant to absorb noisier
+detections. The Ensemble has the cleanest profile overall (HIGH 1.00,
+MEDIUM 0.95, LOW 0.91), reinforcing severity as a triage filter rather
+than a hard classifier.
 
 ---
 
@@ -219,24 +253,30 @@ F1 distribution that std hides):
 
 | Pair | Median F1 Δ | p-value | Verdict (α = 0.05) |
 |---|---:|---:|---|
-| **STL vs Z-Score** | +0.652 | < 1e-4 | Significant |
-| **STL vs Isolation Forest** | +0.438 | < 1e-4 | Significant |
-| **Isolation Forest vs Z-Score** | +0.214 | < 1e-3 | Significant |
+| **STL vs Ensemble** | +0.073 | 1.1e-3 | Significant |
+| **STL vs Z-Score** | +0.166 | 8.3e-7 | Significant |
+| **STL vs Isolation Forest** | +0.432 | 6.0e-8 | Significant |
+| **Ensemble vs Z-Score** | +0.173 | 4.2e-7 | Significant |
+| **Ensemble vs Isolation Forest** | +0.374 | 6.0e-8 | Significant |
+| **Z-Score vs Isolation Forest** | +0.209 | 3.2e-5 | Significant |
 
 A 95% bootstrap confidence interval (2 000 resamples, percentile method)
 on the OVERALL F1 mean gives:
 
 | Detector | F1 mean | 95% CI |
 |---|---:|---|
-| Z-Score | 0.105 | [0.099, 0.113] |
 | Isolation Forest | 0.319 | [0.305, 0.334] |
-| **STL** | **0.757** | **[0.732, 0.781]** |
+| Z-Score | 0.507 | [0.441, 0.571] |
+| Ensemble | 0.655 | [0.602, 0.708] |
+| **STL** | **0.757** | **[0.731, 0.779]** |
 
-The CIs do not overlap, which corroborates the Wilcoxon verdict: STL's
-lead over the other two methods is **statistically robust**, not a
-single-seed fluke. Numbers update automatically - the *Detector
-comparison* view (served from the benchmark in `outputs/benchmark_raw.csv`)
-recomputes the CI / p-value tables live.
+All six pairwise differences are significant and the four CIs are
+ordered and non-overlapping - iForest < Z-Score < Ensemble < STL - so the
+**entire ranking is statistically robust**, not a single-seed fluke. Note
+Z-Score's CI sits entirely above Isolation Forest's, confirming the
+reversal from the pre-redesign benchmark. Numbers update automatically -
+the *Detector comparison* view (served from the benchmark in
+`outputs/benchmark_raw.csv`) recomputes the CI / p-value tables live.
 
 ---
 
