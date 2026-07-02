@@ -51,11 +51,13 @@ export interface Alert {
 export interface ComparisonRow {
   detector: string;
   anomaly_type: string;
-  precision: number;
+  // precision / f1 / fp are null on per-type rows: a false positive has no
+  // anomaly class, so they are only defined on the OVERALL row.
+  precision: number | null;
   recall: number;
-  f1: number;
+  f1: number | null;
   tp: number;
-  fp: number;
+  fp: number | null;
   fn: number;
 }
 export interface Carbon {

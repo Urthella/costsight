@@ -18,6 +18,7 @@ Endpoints:
 from __future__ import annotations
 
 import io
+import math
 import os
 import threading
 from functools import lru_cache
@@ -198,7 +199,7 @@ def http_metrics() -> dict[str, Any]:
     labels = pd.read_csv(labels_path, parse_dates=["date"])
     detector_outputs = {name: fn(long) for name, fn in DETECTORS.items()}
     comparison = compare_detectors(detector_outputs, labels)
-    return {"comparison": comparison.round(4).to_dict(orient="records")}
+    return {"comparison": _df_records(comparison)}
 
 
 @app.get("/forecast")
@@ -220,14 +221,24 @@ def http_forecast(horizon_days: int = 14, seed: int = 0) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 def _df_records(df: pd.DataFrame) -> list[dict[str, Any]]:
-    """Serialize a DataFrame to JSON records, ISO-formatting any datetime cols."""
+    """Serialize a DataFrame to JSON records, ISO-formatting any datetime cols.
+
+    NaN/NA are converted to None: Starlette's JSONResponse renders with
+    ``allow_nan=False``, so a stray NaN (e.g. per-type precision, which is
+    undefined for a class-agnostic detector) would otherwise 500 the endpoint.
+    """
     if df is None or df.empty:
         return []
     out = df.copy()
     for col in out.columns:
         if pd.api.types.is_datetime64_any_dtype(out[col]):
             out[col] = out[col].dt.strftime("%Y-%m-%d")
-    return out.to_dict(orient="records")
+    records = out.to_dict(orient="records")
+    for rec in records:
+        for key, val in rec.items():
+            if isinstance(val, float) and math.isnan(val):
+                rec[key] = None
+    return records
 
 
 @lru_cache(maxsize=16)
